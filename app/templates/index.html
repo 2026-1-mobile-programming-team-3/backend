@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="hero">
+    <h2>{{ app_name }} 임시 콘솔</h2>
+    <p>앱이 완성되기 전, 백엔드 동작을 직접 호출하고 결과를 확인하기 위한 페이지입니다.</p>
+</section>
+
+<!-- ─── 기본 ─────────────────────────────────────────────────────────────── -->
+
+<section class="card">
+    <h3>헬스 체크</h3>
+    <p class="muted">서버가 살아있는지 확인합니다.</p>
+    <div class="actions"><button id="btn-health">GET /health</button></div>
+    <pre id="out-health">아직 호출하지 않음</pre>
+</section>
+
+<section class="card">
+    <h3>API v1 핑</h3>
+    <p class="muted"><code>/api/v1</code> prefix 아래 동작 확인.</p>
+    <div class="actions"><button id="btn-ping">GET /api/v1/ping</button></div>
+    <pre id="out-ping">아직 호출하지 않음</pre>
+</section>
+
+<!-- ─── Auth ──────────────────────────────────────────────────────────────── -->
+
+<h2 class="section-title">🔐 Auth 테스트</h2>
+
+<!-- 세션 배너 -->
+<section class="card session-card">
+    <div class="session-header">
+        <div class="session-header-left">
+            <span id="session-badge" class="badge" data-state="out">로그아웃 상태</span>
+            <span class="muted" style="font-size:0.82rem">토큰은 브라우저 localStorage에 보관됩니다</span>
+        </div>
+        <button id="btn-session-logout" class="btn-sm btn-danger" style="display:none">로그아웃</button>
+    </div>
+    <div class="token-grid">
+        <div class="token-block">
+            <div class="token-label">Access Token &nbsp;·&nbsp; 30분</div>
+            <div id="token-access" class="token-value">—</div>
+            <button class="copy-btn" data-copy="access" onclick="copyToken('access')">복사</button>
+        </div>
+        <div class="token-block">
+            <div class="token-label">Refresh Token &nbsp;·&nbsp; 7일</div>
+            <div id="token-refresh" class="token-value">—</div>
+            <button class="copy-btn" data-copy="refresh" onclick="copyToken('refresh')">복사</button>
+        </div>
+    </div>
+</section>
+
+<!-- 1.1 회원가입 -->
+<section class="card">
+    <h3>1.1 회원가입 &nbsp;<code>POST /api/v1/auth/signup</code></h3>
+    <form id="form-signup">
+        <div class="form-row">
+            <div class="field">
+                <label>이메일</label>
+                <input name="email" type="email" placeholder="test@example.com" required />
+            </div>
+            <div class="field">
+                <label>닉네임</label>
+                <input name="nickname" placeholder="테스터" required />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="field">
+                <label>비밀번호 <span class="muted">8자+, 영문·숫자·특수문자 포함</span></label>
+                <input name="password" type="password" placeholder="Test123!" required />
+            </div>
+            <div class="field">
+                <label>전화번호 <span class="muted">선택</span></label>
+                <input name="phone" placeholder="010-1234-5678" />
+            </div>
+        </div>
+        <div class="actions"><button type="submit">회원가입</button></div>
+    </form>
+    <pre id="out-signup">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.2 로그인 -->
+<section class="card">
+    <h3>1.2 로그인 &nbsp;<code>POST /api/v1/auth/login</code></h3>
+    <p class="muted">성공 시 위 세션 배너에 토큰이 자동 저장됩니다.</p>
+    <form id="form-login">
+        <div class="form-row">
+            <div class="field">
+                <label>이메일</label>
+                <input name="email" type="email" placeholder="test@example.com" required />
+            </div>
+            <div class="field">
+                <label>비밀번호</label>
+                <input name="password" type="password" placeholder="Test123!" required />
+            </div>
+        </div>
+        <div class="actions"><button type="submit">로그인</button></div>
+    </form>
+    <pre id="out-login">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.3 토큰 갱신 -->
+<section class="card">
+    <h3>1.3 토큰 갱신 &nbsp;<code>POST /api/v1/auth/refresh</code></h3>
+    <p class="muted">저장된 Refresh Token으로 새 Access Token을 발급합니다. 세션 배너가 자동 업데이트됩니다.</p>
+    <div class="actions"><button id="btn-refresh">토큰 갱신</button></div>
+    <pre id="out-refresh">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.4 로그아웃 -->
+<section class="card">
+    <h3>1.4 로그아웃 &nbsp;<code>POST /api/v1/auth/logout</code></h3>
+    <p class="muted">서버에서 Refresh Token을 무효화하고 로컬 세션을 초기화합니다.</p>
+    <div class="actions"><button id="btn-logout">로그아웃</button></div>
+    <pre id="out-logout">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.5 내 정보 조회 -->
+<section class="card">
+    <h3>1.5 내 정보 조회 &nbsp;<code>GET /api/v1/users/me</code></h3>
+    <p class="muted">반려동물 목록이 포함된 내 프로필을 조회합니다.</p>
+    <div class="actions"><button id="btn-me">내 정보 조회</button></div>
+    <pre id="out-me">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.6 계정 정보 수정 -->
+<section class="card">
+    <h3>1.6 계정 정보 수정 &nbsp;<code>PATCH /api/v1/users/me</code></h3>
+    <p class="muted">입력한 필드만 업데이트됩니다. 비워두면 현재 값을 유지합니다.</p>
+    <form id="form-update-me">
+        <div class="form-row">
+            <div class="field">
+                <label>새 닉네임</label>
+                <input name="nickname" placeholder="새닉네임" />
+            </div>
+            <div class="field">
+                <label>전화번호</label>
+                <input name="phone" placeholder="010-9999-8888" />
+            </div>
+        </div>
+        <div class="field">
+            <label>프로필 이미지 URL</label>
+            <input name="profile_image_url" placeholder="https://cdn.example.com/profile.jpg" />
+        </div>
+        <div class="actions"><button type="submit">수정</button></div>
+    </form>
+    <pre id="out-update-me">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.7 비밀번호 변경 -->
+<section class="card">
+    <h3>1.7 비밀번호 변경 &nbsp;<code>PUT /api/v1/users/me/password</code></h3>
+    <form id="form-change-pw">
+        <div class="form-row">
+            <div class="field">
+                <label>현재 비밀번호</label>
+                <input name="current_password" type="password" required />
+            </div>
+            <div class="field">
+                <label>새 비밀번호 <span class="muted">8자+, 영문·숫자·특수문자</span></label>
+                <input name="new_password" type="password" required />
+            </div>
+        </div>
+        <div class="actions"><button type="submit">비밀번호 변경</button></div>
+    </form>
+    <pre id="out-change-pw">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.8 계정 탈퇴 -->
+<section class="card">
+    <h3>1.8 계정 탈퇴 &nbsp;<code>DELETE /api/v1/users/me</code></h3>
+    <p class="muted">Soft delete — 30일 후 영구 삭제됩니다.</p>
+    <form id="form-delete-account">
+        <div class="form-row">
+            <div class="field">
+                <label>비밀번호 확인</label>
+                <input name="password" type="password" required />
+            </div>
+            <div class="field">
+                <label>탈퇴 사유 <span class="muted">선택</span></label>
+                <input name="reason" placeholder="더 이상 사용하지 않음" />
+            </div>
+        </div>
+        <div class="actions">
+            <button type="submit" class="btn-danger">계정 탈퇴</button>
+        </div>
+    </form>
+    <pre id="out-delete-account">아직 호출하지 않음</pre>
+</section>
+
+<!-- ─── 반려동물 ──────────────────────────────────────────────────────────── -->
+
+<h2 class="section-title">🐾 반려동물 테스트</h2>
+
+<!-- 1.9 반려동물 등록 -->
+<section class="card">
+    <h3>1.9 반려동물 등록 &nbsp;<code>POST /api/v1/users/me/pets</code></h3>
+    <p class="muted">등록 성공 시 아래 수정/삭제 폼의 pet_id가 자동 입력됩니다.</p>
+    <form id="form-create-pet">
+        <div class="form-row">
+            <div class="field">
+                <label>이름</label>
+                <input name="name" placeholder="멍멍이" required />
+            </div>
+            <div class="field">
+                <label>종류</label>
+                <select name="species">
+                    <option value="DOG">강아지 (DOG)</option>
+                    <option value="CAT">고양이 (CAT)</option>
+                    <option value="OTHER">기타 (OTHER)</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="field">
+                <label>품종 <span class="muted">선택</span></label>
+                <input name="breed" placeholder="포메라니안" />
+            </div>
+            <div class="field">
+                <label>나이 <span class="muted">선택, 0 이상</span></label>
+                <input name="age" type="number" min="0" placeholder="3" />
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="field">
+                <label>체중 kg <span class="muted">선택, 0 초과</span></label>
+                <input name="weight_kg" type="number" step="0.01" min="0.01" placeholder="3.5" />
+            </div>
+            <div class="field">
+                <label>중성화 여부</label>
+                <select name="is_neutered">
+                    <option value="true">예 (완료)</option>
+                    <option value="false">아니오</option>
+                </select>
+            </div>
+        </div>
+        <div class="field">
+            <label>사진 URL <span class="muted">선택</span></label>
+            <input name="photo_url" placeholder="https://cdn.example.com/pet.jpg" />
+        </div>
+        <div class="actions"><button type="submit">등록</button></div>
+    </form>
+    <pre id="out-create-pet">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.10 반려동물 정보 수정 -->
+<section class="card">
+    <h3>1.10 반려동물 정보 수정 &nbsp;<code>PATCH /api/v1/users/me/pets/{pet_id}</code></h3>
+    <p class="muted">수정 가능 필드: is_neutered, weight_kg 만. 변경 안 할 항목은 비워두세요.</p>
+    <form id="form-update-pet">
+        <div class="form-row">
+            <div class="field">
+                <label>pet_id <span class="muted">등록 성공 시 자동 입력</span></label>
+                <input id="update-pet-id" type="number" placeholder="1" class="pet-id-input" required />
+            </div>
+            <div class="field">
+                <label>중성화 여부 <span class="muted">선택</span></label>
+                <select name="is_neutered">
+                    <option value="">변경 안 함</option>
+                    <option value="true">예 (완료)</option>
+                    <option value="false">아니오</option>
+                </select>
+            </div>
+        </div>
+        <div class="field">
+            <label>체중 kg <span class="muted">선택</span></label>
+            <input name="weight_kg" type="number" step="0.01" min="0.01" placeholder="4.2" />
+        </div>
+        <div class="actions"><button type="submit">수정</button></div>
+    </form>
+    <pre id="out-update-pet">아직 호출하지 않음</pre>
+</section>
+
+<!-- 1.11 반려동물 삭제 -->
+<section class="card">
+    <h3>1.11 반려동물 삭제 &nbsp;<code>DELETE /api/v1/users/me/pets/{pet_id}</code></h3>
+    <div class="form-row">
+        <div class="field">
+            <label>pet_id <span class="muted">등록 성공 시 자동 입력</span></label>
+            <input id="delete-pet-id" type="number" placeholder="1" class="pet-id-input" />
+        </div>
+    </div>
+    <div class="actions"><button id="btn-delete-pet" class="btn-danger">삭제</button></div>
+    <pre id="out-delete-pet">아직 호출하지 않음</pre>
+</section>
+
+<!-- ─── 도메인 현황 ──────────────────────────────────────────────────────── -->
+
+<h2 class="section-title">도메인 작업 현황</h2>
+<section class="card">
+    <p class="muted">각 도메인이 완성되는 대로 위 테스트 섹션이 추가됩니다.</p>
+    <ul class="domains">
+        <li><strong>Auth</strong> — 회원가입 / 로그인 / 토큰 관리 / 정보 수정 / 반려동물 CRUD <span class="tag tag-done">완료</span></li>
+        <li><strong>Notification</strong> — 알림 목록 / 읽음 처리 <span class="tag">예정</span></li>
+        <li><strong>Match</strong> — 이동 지원 요청 / 봉사 신청 <span class="tag">예정</span></li>
+        <li><strong>Report</strong> — 신고 / 차단 <span class="tag">예정</span></li>
+        <li><strong>Map</strong> — 매장 지도 / 리뷰 <span class="tag">예정</span></li>
+        <li><strong>News</strong> — 정책 뉴스 / 캘린더 <span class="tag">예정</span></li>
+    </ul>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ─── 기본 ────────────────────────────────────────────────────────────────────
+bindCall("btn-health", "out-health", "/health");
+bindCall("btn-ping",   "out-ping",   "/api/v1/ping");
+
+// ─── 1.1 회원가입 ────────────────────────────────────────────────────────────
+bindForm("form-signup", "out-signup", "/api/v1/auth/signup");
+
+// ─── 1.2 로그인 → 토큰 자동 저장 ─────────────────────────────────────────────
+bindForm("form-login", "out-login", "/api/v1/auth/login", {
+    onSuccess(resp) { setSession(resp.access_token, resp.refresh_token); },
+});
+
+// ─── 1.3 토큰 갱신 ───────────────────────────────────────────────────────────
+document.getElementById("btn-refresh").addEventListener("click", async () => {
+    const out = document.getElementById("out-refresh");
+    const rt  = getToken("refresh");
+    if (!rt) {
+        render(out, 0, "저장된 Refresh Token이 없습니다. 먼저 로그인하세요.");
+        return;
+    }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body } = await callApi("/api/v1/auth/refresh", {
+        method: "POST",
+        body: { refresh_token: rt },
+    });
+    render(out, status, body);
+    if (status === 200) setSession(body.access_token); // refresh token 은 그대로 유지
+});
+
+// ─── 1.4 로그아웃 ────────────────────────────────────────────────────────────
+async function doLogout(out) {
+    const rt = getToken("refresh");
+    if (!rt) {
+        if (out) render(out, 0, "저장된 Refresh Token이 없습니다.");
+        clearSession();
+        return;
+    }
+    if (out) { out.textContent = "호출 중..."; delete out.dataset.status; }
+    const { status, body } = await callApi("/api/v1/auth/logout", {
+        method: "POST",
+        body: { refresh_token: rt },
+        headers: authHeaders(),
+    });
+    if (out) render(out, status, body);
+    clearSession();
+}
+
+document.getElementById("btn-logout").addEventListener("click", () =>
+    doLogout(document.getElementById("out-logout"))
+);
+document.getElementById("btn-session-logout").addEventListener("click", () =>
+    doLogout(null)
+);
+
+// ─── 1.5 내 정보 조회 ────────────────────────────────────────────────────────
+bindCall("btn-me", "out-me", "/api/v1/users/me", { auth: true });
+
+// ─── 1.6 계정 정보 수정 ──────────────────────────────────────────────────────
+bindForm("form-update-me", "out-update-me", "/api/v1/users/me", {
+    method: "PATCH",
+    auth: true,
+});
+
+// ─── 1.7 비밀번호 변경 ───────────────────────────────────────────────────────
+bindForm("form-change-pw", "out-change-pw", "/api/v1/users/me/password", {
+    method: "PUT",
+    auth: true,
+});
+
+// ─── 1.8 계정 탈퇴 → 성공 시 세션 초기화 ─────────────────────────────────────
+bindForm("form-delete-account", "out-delete-account", "/api/v1/users/me", {
+    method: "DELETE",
+    auth: true,
+    onSuccess() { clearSession(); },
+});
+
+// ─── 1.9 반려동물 등록 → 성공 시 pet_id 자동 입력 ─────────────────────────────
+bindForm("form-create-pet", "out-create-pet", "/api/v1/users/me/pets", {
+    auth: true,
+    onSuccess(resp) {
+        document.querySelectorAll(".pet-id-input").forEach(el => { el.value = resp.id; });
+    },
+});
+
+// ─── 1.10 반려동물 정보 수정 ────────────────────────────────────────────────────
+document.getElementById("form-update-pet").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const out   = document.getElementById("out-update-pet");
+    const petId = document.getElementById("update-pet-id").value;
+    if (!petId) { render(out, 0, "pet_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const body = readForm("form-update-pet"); // pet_id 입력에 name 없으므로 body에서 제외됨
+    try {
+        const { status, body: resp } = await callApi(`/api/v1/users/me/pets/${petId}`, {
+            method: "PATCH", body, headers: authHeaders(),
+        });
+        render(out, status, resp);
+    } catch (err) {
+        out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error";
+    }
+});
+
+// ─── 1.11 반려동물 삭제 ─────────────────────────────────────────────────────────
+document.getElementById("btn-delete-pet").addEventListener("click", async () => {
+    const out   = document.getElementById("out-delete-pet");
+    const petId = document.getElementById("delete-pet-id").value;
+    if (!petId) { render(out, 0, "pet_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const { status, body } = await callApi(`/api/v1/users/me/pets/${petId}`, {
+            method: "DELETE", headers: authHeaders(),
+        });
+        render(out, status, status === 204 ? "삭제 완료" : body);
+    } catch (err) {
+        out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error";
+    }
+});
+</script>
+{% endblock %}

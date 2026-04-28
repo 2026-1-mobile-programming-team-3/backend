@@ -1,0 +1,319 @@
+// =============================================================================
+// 시흥가개 DB Schema (DBML)
+//
+// dbdiagram.io 좌측 에디터에 그대로 붙여넣어 사용.
+// dbdocs CLI 로 정적 문서 사이트 빌드도 가능 (dbdocs build schema.dbml).
+//
+// 동일 내용의 실행 가능한 PostgreSQL DDL 은 schema.sql 참조.
+// =============================================================================
+
+Project siheunggage {
+  database_type: 'PostgreSQL'
+  Note: '시흥시 반려동물 동반 매장 지도 + 중성화 이동 지원 봉사자 매칭 앱 백엔드'
+}
+
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+Enum user_role { USER  VOLUNTEER  ADMIN }
+Enum pet_species { DOG  CAT  OTHER }
+Enum notification_category { VOLUNTEER  MATCH  REVIEW  NEWS  POLICY  SYSTEM }
+Enum match_status { WAITING  MATCHING  PROGRESS  DONE }
+Enum application_status { PENDING  ACCEPTED  REJECTED }
+Enum volunteer_request_status { PENDING  APPROVED  REJECTED }
+Enum store_category { CAFE  RESTAURANT  PARK }
+Enum store_status { PENDING  APPROVED  REJECTED }
+
+
+// =============================================================================
+// T0 — MVP 필수 테이블
+// =============================================================================
+
+Table users {
+  id bigserial [pk, note: '사용자 고유 ID']
+  email varchar(255) [not null, unique, note: '로그인 ID (이메일)']
+  password_hash varchar(255) [not null, note: '비밀번호 해시 (bcrypt 또는 argon2)']
+  nickname varchar(20) [not null, unique, note: '닉네임 (2~20자)']
+  phone varchar(20) [note: '연락처 (선택)']
+  role user_role [not null, default: 'USER', note: '권한 등급']
+  profile_image_url text [note: '프로필 이미지 URL (외부 스토리지)']
+  created_at timestamptz [not null, default: `now()`, note: '가입 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '정보 수정 시각']
+  deleted_at timestamptz [note: '탈퇴 시각 (soft delete, 30일 후 영구 삭제)']
+
+  Note: '회원 (USER / VOLUNTEER / ADMIN)'
+}
+
+Table devices {
+  id bigserial [pk, note: '디바이스 레코드 ID']
+  user_id bigint [not null, note: '소유 사용자 FK']
+  fcm_token text [not null, unique, note: 'Firebase Cloud Messaging 등록 토큰']
+  device_name varchar(100) [note: '기기명 (디버깅용, 선택)']
+  created_at timestamptz [not null, default: `now()`, note: '최초 등록 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '토큰 갱신 시각']
+
+  Note: 'FCM 푸시 알림 대상 디바이스 (한 사용자가 여러 기기 가능)'
+}
+
+Table refresh_tokens {
+  id bigserial [pk, note: '토큰 레코드 ID']
+  user_id bigint [not null, note: '소유 사용자 FK']
+  device_id bigint [note: '발급된 디바이스 FK (선택)']
+  token_hash varchar(64) [not null, unique, note: 'raw refresh token 의 SHA-256 hex 해시 (64자, 원문 미저장)']
+  expires_at timestamptz [not null, note: '만료 시각 (발급 + 7일)']
+  revoked_at timestamptz [note: '무효화 시각 (로그아웃 시 set)']
+  created_at timestamptz [not null, default: `now()`, note: '발급 시각']
+
+  Note: '활성 리프레시 토큰 화이트리스트 (멀티 디바이스 로그인)'
+}
+
+Table pets {
+  id bigserial [pk, note: '반려동물 ID']
+  user_id bigint [not null, note: '보호자(회원) FK']
+  name varchar(50) [not null, note: '이름']
+  species pet_species [not null, note: '종']
+  breed varchar(50) [note: '품종 (선택)']
+  age smallint [note: '나이 (>= 0, 선택)']
+  weight_kg "numeric(5,2)" [note: '체중 kg (> 0, 선택)']
+  is_neutered boolean [not null, default: false, note: '중성화 여부']
+  photo_url text [note: '사진 URL']
+  created_at timestamptz [not null, default: `now()`, note: '등록 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '정보 수정 시각']
+
+  Note: '회원이 등록한 반려동물'
+}
+
+Table notifications {
+  id bigserial [pk, note: '알림 ID']
+  user_id bigint [not null, note: '수신자 FK']
+  category notification_category [not null, note: '분류']
+  title varchar(100) [not null, note: '알림 제목']
+  body text [not null, note: '알림 본문']
+  link varchar(255) [note: '클릭 시 이동할 in-app deep link 경로 (예: /match/42)']
+  read_at timestamptz [note: '읽은 시각 (NULL = 안 읽음, 안읽음 카운트는 read_at IS NULL 로 조회)']
+  created_at timestamptz [not null, default: `now()`, note: '생성 시각']
+
+  indexes {
+    (user_id, created_at) [name: 'idx_notifications_user_created']
+  }
+
+  Note: '인앱 알림 (FCM 발송과 별개로 목록/배지 표시에 사용)'
+}
+
+Table matches {
+  id bigserial [pk, note: '요청 글 ID']
+  author_id bigint [not null, note: '작성자 (보호자) FK']
+  pet_id bigint [note: '대상 반려동물 FK']
+  title varchar(100) [not null, note: '제목']
+  content text [not null, note: '본문']
+  location "geography(Point, 4326)" [not null, note: '출발/픽업 좌표 (PostGIS Point, SRID 4326)']
+  address varchar(255) [note: '사람이 읽는 주소']
+  desired_date date [note: '희망 일정']
+  status match_status [not null, default: 'WAITING', note: 'WAITING → MATCHING → PROGRESS → DONE']
+  created_at timestamptz [not null, default: `now()`, note: '작성 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '수정 시각']
+  deleted_at timestamptz [note: '삭제 시각 (soft delete)']
+
+  indexes {
+    (status, created_at) [name: 'idx_matches_status_created']
+    location [type: gist, name: 'idx_matches_location_gist']
+  }
+
+  Note: '이동 지원 요청 글 (작성 + 매칭 진행 상태 통합)'
+}
+
+Table match_applications {
+  id bigserial [pk, note: '신청 ID']
+  match_id bigint [not null, note: '대상 매칭 글 FK']
+  applicant_id bigint [not null, note: '신청 봉사자 FK']
+  message text [note: '신청 메시지 (자유 텍스트)']
+  status application_status [not null, default: 'PENDING', note: 'PENDING/ACCEPTED/REJECTED']
+  created_at timestamptz [not null, default: `now()`, note: '신청 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '상태 변경 시각']
+
+  indexes {
+    (match_id, applicant_id) [unique]
+    (match_id, status) [name: 'idx_match_applications_match_status']
+  }
+
+  Note: '봉사 신청 (작성자가 ACCEPT 시 매칭 성사). 한 매칭당 ACCEPTED 신청자는 1명만'
+}
+
+Table stores {
+  id bigserial [pk, note: '매장 ID']
+  name varchar(100) [not null, note: '상호명']
+  address varchar(255) [not null, note: '주소']
+  phone varchar(20) [note: '전화번호']
+  category store_category [not null, note: '분류']
+  location "geography(Point, 4326)" [not null, note: '좌표 (PostGIS Point, SRID 4326)']
+  operating_hours varchar(100) [note: '운영 시간 자유 문자열 (예: 10:00-22:00)']
+  photo_urls "text[]" [not null, default: `'{}'`, note: '매장 사진 URL 배열 (배열 순서 = 표시 순서)']
+  is_pet_allowed boolean [not null, default: true, note: '반려동물 출입 가능 여부 (관리자/시드 입력 - 공식 정보)']
+  status store_status [not null, default: 'PENDING', note: 'PENDING(검수중) → APPROVED(노출)']
+  created_by bigint [note: '등록자 FK (NULL = 시드 데이터)']
+  rating_avg "numeric(3,2)" [not null, default: 0, note: '리뷰 평균 (denormalized)']
+  rating_count integer [not null, default: 0, note: '리뷰 개수 (denormalized)']
+  created_at timestamptz [not null, default: `now()`, note: '등록 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '수정 시각']
+  deleted_at timestamptz [note: '삭제 시각 (soft delete)']
+
+  indexes {
+    location [type: gist, name: 'idx_stores_location_gist']
+    (status, category) [name: 'idx_stores_status_category']
+  }
+
+  Note: '반려동물 동반 가능 매장'
+}
+
+Table news {
+  id bigserial [pk, note: '뉴스 ID']
+  title varchar(200) [not null, note: '제목']
+  summary varchar(500) [note: '목록 요약']
+  content text [note: '본문']
+  official_link varchar(500) [note: '시흥시 공식 사이트 원문 링크']
+  published_date date [not null, note: '게시일']
+  created_at timestamptz [not null, default: `now()`, note: '레코드 생성 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '레코드 수정 시각']
+
+  indexes {
+    published_date [name: 'idx_news_published_date']
+  }
+
+  Note: '시흥시 반려동물 정책 뉴스'
+}
+
+
+// =============================================================================
+// T1 — 안정화 단계 테이블
+// =============================================================================
+
+Table volunteer_requests {
+  id bigserial [pk, note: '요청 ID']
+  user_id bigint [not null, note: '신청자 FK']
+  message text [not null, note: '신청자가 작성한 자유 텍스트 한 줄']
+  status volunteer_request_status [not null, default: 'PENDING', note: 'PENDING → APPROVED / REJECTED']
+  processed_at timestamptz [note: '관리자 처리 시각']
+  created_at timestamptz [not null, default: `now()`, note: '신청 시각']
+
+  Note: 'USER → VOLUNTEER 역할 전환 요청 (관리자 승인 대상)'
+}
+
+Table chat_messages {
+  id bigserial [pk, note: '메시지 ID']
+  application_id bigint [not null, note: '대화가 속한 신청 FK (참여자는 application.match.author + applicant 두 명)']
+  sender_id bigint [note: '발신자 FK']
+  content text [not null, note: '메시지 내용']
+  read_at timestamptz [note: '상대방이 읽은 시각']
+  created_at timestamptz [not null, default: `now()`, note: '발송 시각']
+
+  indexes {
+    (application_id, created_at) [name: 'idx_chat_messages_application_created']
+  }
+
+  Note: '채팅 메시지 (스레드 = match_applications 1건, 작성자 ↔ 한 신청자 1:1 — 매칭 1건당 N개 스레드)'
+}
+
+Table match_reviews {
+  id bigserial [pk, note: '후기 ID']
+  match_id bigint [not null, note: '대상 매칭 FK']
+  reviewer_id bigint [not null, note: '작성자 FK']
+  reviewee_id bigint [not null, note: '대상자 FK (작성자와 달라야 함)']
+  rating smallint [not null, note: '평점 (1~5)']
+  content text [note: '후기 내용']
+  proof_image_urls "text[]" [note: '봉사 인증 사진 URL 배열']
+  created_at timestamptz [not null, default: `now()`, note: '작성 시각']
+
+  indexes {
+    (match_id, reviewer_id) [unique]
+    (reviewee_id, created_at) [name: 'idx_match_reviews_reviewee']
+  }
+
+  Note: '봉사 완료 후 양측이 서로 작성하는 후기 (통계의 원천 데이터)'
+}
+
+Table store_reviews {
+  id bigserial [pk, note: '리뷰 ID']
+  store_id bigint [not null, note: '대상 매장 FK']
+  author_id bigint [not null, note: '작성자 FK']
+  rating smallint [not null, note: '평점 (1~5)']
+  is_pet_allowed boolean [not null, note: '방문 당시 반려동물 출입 가능 여부 (작성자가 체크박스로 입력)']
+  content text [not null, note: '리뷰 내용']
+  created_at timestamptz [not null, default: `now()`, note: '작성 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '수정 시각']
+
+  indexes {
+    (store_id, author_id) [unique]
+    (store_id, created_at) [name: 'idx_store_reviews_store_created']
+  }
+
+  Note: '매장 별점·리뷰 (반려동물 출입 가능 여부도 사용자 확인 형태로 수집). 한 사용자 = 한 매장 1리뷰'
+}
+
+Table reports {
+  id bigserial [pk, note: '신고 ID']
+  reporter_id bigint [not null, note: '신고자 FK']
+  target_user_id bigint [note: '신고 대상 사용자 FK']
+  reason text [not null, note: '신고 사유 (자유 텍스트)']
+  created_at timestamptz [not null, default: `now()`, note: '신고 시각']
+
+  indexes {
+    (reporter_id, target_user_id) [unique]
+    (target_user_id, created_at) [name: 'idx_reports_target_created']
+  }
+
+  Note: '사용자 신고 (관리자 검토용 단순 로그, 동일 신고자→대상 중복 차단)'
+}
+
+Table calendar_events {
+  id bigserial [pk, note: '일정 ID']
+  title varchar(200) [not null, note: '일정 제목']
+  description text [note: '상세 설명']
+  start_date date [not null, note: '시작일']
+  end_date date [not null, note: '종료일 (>= start_date)']
+  event_time time [note: '일정 시각 (선택)']
+  created_at timestamptz [not null, default: `now()`, note: '레코드 생성 시각']
+  updated_at timestamptz [not null, default: `now()`, note: '레코드 수정 시각']
+
+  indexes {
+    (start_date, end_date) [name: 'idx_calendar_events_dates']
+  }
+
+  Note: '시흥시 반려동물 정책 일정'
+}
+
+
+// =============================================================================
+// REFERENCES (외래키 관계)
+// =============================================================================
+
+Ref: devices.user_id > users.id [delete: cascade]
+
+Ref: refresh_tokens.user_id > users.id [delete: cascade]
+Ref: refresh_tokens.device_id > devices.id [delete: set null]
+
+Ref: pets.user_id > users.id [delete: cascade]
+
+Ref: notifications.user_id > users.id [delete: cascade]
+
+Ref: matches.author_id > users.id [delete: cascade]
+Ref: matches.pet_id > pets.id [delete: set null]
+
+Ref: match_applications.match_id > matches.id [delete: cascade]
+Ref: match_applications.applicant_id > users.id [delete: cascade]
+
+Ref: stores.created_by > users.id [delete: set null]
+
+Ref: volunteer_requests.user_id > users.id [delete: cascade]
+
+Ref: chat_messages.application_id > match_applications.id [delete: cascade]
+Ref: chat_messages.sender_id > users.id [delete: set null]
+
+Ref: match_reviews.match_id > matches.id [delete: cascade]
+Ref: match_reviews.reviewer_id > users.id [delete: cascade]
+Ref: match_reviews.reviewee_id > users.id [delete: cascade]
+
+Ref: store_reviews.store_id > stores.id [delete: cascade]
+Ref: store_reviews.author_id > users.id [delete: cascade]
+
+Ref: reports.reporter_id > users.id [delete: cascade]
+Ref: reports.target_user_id > users.id [delete: set null]

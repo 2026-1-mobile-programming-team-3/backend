@@ -1,0 +1,73 @@
+from datetime import datetime
+
+from pydantic import BaseModel, field_validator
+
+from app.core.security import validate_password_strength
+from app.models.enums import PetSpecies, UserRole
+
+
+class PetSummary(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    name: str
+    species: PetSpecies
+    breed: str | None
+    is_neutered: bool
+
+
+class UserMeResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    email: str
+    nickname: str
+    phone: str | None
+    role: UserRole
+    profile_image_url: str | None
+    pets: list[PetSummary] = []
+    created_at: datetime
+
+
+class UserResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    email: str
+    nickname: str
+    phone: str | None
+    role: UserRole
+    profile_image_url: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserUpdateRequest(BaseModel):
+    nickname: str | None = None
+    phone: str | None = None
+    profile_image_url: str | None = None
+
+    @field_validator("nickname")
+    @classmethod
+    def validate_nickname(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        v = v.strip()
+        if not (2 <= len(v) <= 20):
+            raise ValueError("닉네임은 2자 이상 20자 이하여야 합니다.")
+        return v
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return validate_password_strength(v)
+
+
+class AccountDeleteRequest(BaseModel):
+    password: str
+    reason: str | None = None

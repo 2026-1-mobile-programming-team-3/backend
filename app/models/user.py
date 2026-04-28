@@ -1,0 +1,120 @@
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
+
+import sqlalchemy as sa
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+from app.models.enums import PetSpecies, UserRole
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
+    email: Mapped[str] = mapped_column(sa.String(255), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(sa.String(255), nullable=False)
+    nickname: Mapped[str] = mapped_column(sa.String(20), nullable=False, unique=True)
+    phone: Mapped[Optional[str]] = mapped_column(sa.String(20))
+    role: Mapped[UserRole] = mapped_column(
+        sa.Enum(UserRole, name="user_role"),
+        nullable=False,
+        default=UserRole.USER,
+        server_default=sa.text("'USER'"),
+    )
+    profile_image_url: Mapped[Optional[str]] = mapped_column(sa.Text)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(sa.TIMESTAMP(timezone=True))
+
+    pets: Mapped[list["Pet"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    devices: Mapped[list["Device"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        sa.Index("idx_users_role_active", "role", postgresql_where=sa.text("deleted_at IS NULL")),
+    )
+
+
+class Device(Base):
+    __tablename__ = "devices"
+
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        sa.BigInteger, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    fcm_token: Mapped[str] = mapped_column(sa.Text, nullable=False, unique=True)
+    device_name: Mapped[Optional[str]] = mapped_column(sa.String(100))
+    created_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+
+    user: Mapped["User"] = relationship(back_populates="devices")
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="device")
+
+    __table_args__ = (sa.Index("idx_devices_user_id", "user_id"),)
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        sa.BigInteger, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    device_id: Mapped[Optional[int]] = mapped_column(
+        sa.BigInteger, sa.ForeignKey("devices.id", ondelete="SET NULL")
+    )
+    token_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(sa.TIMESTAMP(timezone=True), nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(sa.TIMESTAMP(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+
+    device: Mapped[Optional["Device"]] = relationship(back_populates="refresh_tokens")
+
+    __table_args__ = (
+        sa.Index(
+            "idx_refresh_tokens_user_active",
+            "user_id",
+            postgresql_where=sa.text("revoked_at IS NULL"),
+        ),
+    )
+
+
+class Pet(Base):
+    __tablename__ = "pets"
+
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        sa.BigInteger, sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(sa.String(50), nullable=False)
+    species: Mapped[PetSpecies] = mapped_column(
+        sa.Enum(PetSpecies, name="pet_species"), nullable=False
+    )
+    breed: Mapped[Optional[str]] = mapped_column(sa.String(50))
+    age: Mapped[Optional[int]] = mapped_column(sa.SmallInteger)
+    weight_kg: Mapped[Optional[Decimal]] = mapped_column(sa.Numeric(5, 2))
+    is_neutered: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, default=False, server_default=sa.text("FALSE")
+    )
+    photo_url: Mapped[Optional[str]] = mapped_column(sa.Text)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+
+    user: Mapped["User"] = relationship(back_populates="pets")
+
+    __table_args__ = (sa.Index("idx_pets_user_id", "user_id"),)
