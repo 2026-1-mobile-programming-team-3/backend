@@ -127,11 +127,13 @@ function _renderSession() {
     const access  = getToken("access");
     const refresh = getToken("refresh");
 
+    const card       = document.querySelector(".session-card");
     const badge      = document.getElementById("session-badge");
     const accessEl   = document.getElementById("token-access");
     const refreshEl  = document.getElementById("token-refresh");
     const logoutBtn  = document.getElementById("btn-session-logout");
 
+    if (card) card.style.display = access ? "" : "none";
     if (badge) {
         badge.textContent  = access ? "✓  로그인됨" : "로그아웃 상태";
         badge.dataset.state = access ? "in" : "out";
