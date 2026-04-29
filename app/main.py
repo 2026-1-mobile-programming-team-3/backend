@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqladmin import Admin
@@ -78,6 +79,9 @@ admin.add_view(StoreReviewAdmin)
 admin.add_view(VolunteerRequestAdmin)
 admin.add_view(ReportAdmin)
 admin.add_view(CalendarEventAdmin)
+
+
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/health", tags=["root"])

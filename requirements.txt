@@ -16,3 +16,4 @@ geoalchemy2==0.15.2
 email-validator==2.2.0
 sqladmin==0.18.0
 itsdangerous==2.2.0
+prometheus-fastapi-instrumentator==7.1.0
