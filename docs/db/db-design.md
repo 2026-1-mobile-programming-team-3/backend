@@ -105,8 +105,8 @@ FCM 토큰. 한 사용자가 여러 기기 가능.
 | `name` | `VARCHAR(50)` | NOT NULL |
 | `species` | `pet_species` | NOT NULL |
 | `breed` | `VARCHAR(50)` | NULL |
-| `age` | `SMALLINT` | NULL, CHECK `>= 0` |
-| `weight_kg` | `NUMERIC(5,2)` | NULL, CHECK `> 0` |
+| `age` | `SMALLINT` | NULL, CHECK `age IS NULL OR age >= 0` (`ck_pets_age_non_negative`) |
+| `weight_kg` | `NUMERIC(5,2)` | NULL, CHECK `weight_kg IS NULL OR weight_kg > 0` (`ck_pets_weight_positive`) |
 | `is_neutered` | `BOOLEAN` | NOT NULL DEFAULT FALSE |
 | `photo_url` | `TEXT` | NULL |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL DEFAULT NOW() |

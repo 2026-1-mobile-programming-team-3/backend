@@ -117,4 +117,8 @@ class Pet(Base):
 
     user: Mapped["User"] = relationship(back_populates="pets")
 
-    __table_args__ = (sa.Index("idx_pets_user_id", "user_id"),)
+    __table_args__ = (
+        sa.Index("idx_pets_user_id", "user_id"),
+        sa.CheckConstraint("age IS NULL OR age >= 0", name="ck_pets_age_non_negative"),
+        sa.CheckConstraint("weight_kg IS NULL OR weight_kg > 0", name="ck_pets_weight_positive"),
+    )

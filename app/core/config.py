@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str
     ADMIN_PASSWORD: str
 
+    NAVER_API_ID: str
+    NAVER_API_SECRET: str
+    NEWS_CACHE_TTL: int = 14_400  # 4시간
+
     @property
     def DATABASE_URL(self) -> str:
         if self.DATABASE_URL_RAW:

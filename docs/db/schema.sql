@@ -124,12 +124,14 @@ CREATE TABLE pets (
     name         VARCHAR(50)   NOT NULL,
     species      pet_species   NOT NULL,
     breed        VARCHAR(50),
-    age          SMALLINT      CHECK (age IS NULL OR age >= 0),
-    weight_kg    NUMERIC(5,2)  CHECK (weight_kg IS NULL OR weight_kg > 0),
+    age          SMALLINT,
+    weight_kg    NUMERIC(5,2),
     is_neutered  BOOLEAN       NOT NULL DEFAULT FALSE,
     photo_url    TEXT,
     created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+    updated_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_pets_age_non_negative  CHECK (age IS NULL OR age >= 0),
+    CONSTRAINT ck_pets_weight_positive   CHECK (weight_kg IS NULL OR weight_kg > 0)
 );
 
 CREATE INDEX idx_pets_user_id ON pets (user_id);
