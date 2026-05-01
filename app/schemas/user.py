@@ -71,3 +71,17 @@ class PasswordChangeRequest(BaseModel):
 class AccountDeleteRequest(BaseModel):
     password: str
     reason: str | None = None
+
+
+class VolunteerRequestCreate(BaseModel):
+    message: str
+
+
+class VolunteerRequestResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    user_id: int
+    message: str
+    status: str
+    created_at: datetime
