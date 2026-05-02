@@ -1,5 +1,7 @@
 # 프로젝트 정보 — 시흥가개
 
+> 마지막 갱신: 2026-05-02. 코드 변경에 따라 이 문서를 함께 손봐야 한다.
+
 ## 1. 기본 정보
 
 | 항목 | 내용 |
@@ -8,8 +10,7 @@
 | 앱 이름 | 시흥가개 |
 | 팀명 | 삼삼오오 (3팀) |
 | 과목 | 모바일프로그래밍 2026년 1학기 |
-| 플랫폼 | Android (모바일) |
-| 백엔드 | REST API |
+| 플랫폼 | Android (모바일 클라이언트) + REST API 백엔드 |
 
 ## 2. 팀 구성
 
@@ -21,7 +22,7 @@
 | 김재호 | 앱 제작 담당 |
 | 김태은 | 앱 제작 담당 |
 
-> 각 도메인의 백엔드 명세 문서 작성은 위 백엔드 인원이 분담했으며, 실제 구현 담당자는 아니다.
+> 백엔드 명세 작성은 위 백엔드 인원이 분담했다. 실제 백엔드 구현은 그와 별개로 진행 중이며, 현재 시점 기준 구현 상태는 `feature-spec.md`의 ✅/⚠️/❌ 표기를 따른다.
 
 ## 3. 프로젝트 필요성
 
@@ -48,28 +49,41 @@
 - **복지 매칭 기능**: 취약계층 실외견 중성화 이동 지원을 위한 지역 자원봉사자 매칭 시스템 도입
 - **사용자 참여형 데이터**: 이용자 리뷰와 평가를 통해 출입 가능 여부 등 변동이 잦은 매장 정보를 빠르게 공유
 
-## 6. 핵심 기능 (6대 도메인)
+## 6. 핵심 기능 (6개 도메인)
 
-| # | 도메인 | 약어 | 역할군 | 핵심 가치 |
+| # | 도메인 | 약어 | 핵심 기능 | 라우터 파일 |
 | --- | --- | --- | --- | --- |
-| 1 | 사용자 관리 | Auth | 백엔드 | 회원가입/인증, 반려동물 등록, 봉사자 권한 관리 |
-| 2 | 알림 | Notification | 백엔드 | 매칭/승인/뉴스 등 사용자 알림 (FCM 푸시) |
-| 3 | 중성화 이동 지원 매칭 | Match | 백엔드 | 봉사자–보호자 매칭, 1:1 채팅, 봉사 후기 |
-| 4 | 신고/차단 | Report | 백엔드 | 부적절 게시글/사용자 신고 및 차단 |
-| 5 | 지도 / 장소 서비스 | Map | 백엔드 | 반려동물 동반 매장 지도, 검색, 리뷰 |
-| 6 | 반려동물 뉴스 캘린더 | News | 백엔드 | 시흥시 반려동물 정책 뉴스 및 일정 캘린더 |
+| 1 | 사용자 관리 | Auth | 회원가입/로그인/JWT, 내 정보, 반려동물, 봉사자 권한 요청·승인 | `auth.py` `users.py` `pets.py` `admin.py` |
+| 2 | 알림 | Notification | 알림 목록·미읽음 카운트, FCM 디바이스 토큰 등록 | `notifications.py` |
+| 3 | 중성화 이동 지원 매칭 | Match | 요청글 작성·조회, 봉사 신청, 매칭 수락/거절 | `matches.py` |
+| 4 | 신고/차단 | Report | 게시글·유저 신고 (게시글·채팅 통합 단일 엔드포인트) | `reports.py` |
+| 5 | 지도 / 장소 서비스 | Map | 매장 반경 검색·검색·상세·리뷰·등록·관리, 봉사 위치 노출 | `maps.py` |
+| 6 | 반려동물 뉴스 캘린더 | News | 시흥시 반려동물 정책 뉴스(네이버 검색 API 캐싱), 월별 캘린더 | `news.py` |
+
+> 기능별 구현 현황과 우선순위는 `feature-spec.md` 참고.
 
 ## 7. 기술 스택 / 컨벤션 (백엔드)
 
 | 항목 | 내용 |
 | --- | --- |
-| 아키텍처 | REST API |
-| API Base Path | `/api/v1` |
-| 인증 방식 | JWT (Access Token + Refresh Token) |
-| Access Token 만료 | 30분 (1800초) |
+| 언어 | Python 3.12 |
+| 프레임워크 | FastAPI 0.115 |
+| ORM | SQLAlchemy 2.0 (Async) + GeoAlchemy2 |
+| DB | PostgreSQL 16 + PostGIS 3.4 (이미지 `postgis/postgis:16-3.4`) |
+| DB 드라이버 | asyncpg |
+| 캐시 | Redis 7 (뉴스 응답 캐시 4시간) |
+| 마이그레이션 | Alembic 1.13 |
+| 인증 | JWT — `python-jose` + `passlib[bcrypt]` |
+| Access Token 만료 | 30분 |
 | Refresh Token 만료 | 7일 |
-| 푸시 알림 | FCM (Firebase Cloud Messaging) |
+| 세션 미들웨어 | Starlette `SessionMiddleware` (sqladmin 로그인용) |
+| 관리자 콘솔 | sqladmin 0.18 — `/admin` 경로, ID/PW 환경변수 |
+| 모니터링 | prometheus-fastapi-instrumentator → `/metrics` |
+| 외부 API | 네이버 검색 API (뉴스), FCM (푸시 — 토큰만 저장, 발송 미구현) |
+| 정적/템플릿 | 백엔드 임시 콘솔용 Jinja2 (`/`) |
+| API Base Path | `/api/v1` |
 | Content-Type | `application/json` |
+| 컨테이너 | Docker Compose (api / db / redis 3개 서비스) |
 
 ## 8. 우선순위 정의
 
@@ -81,10 +95,37 @@
 
 ## 9. 산출물 위치
 
-| 문서 | 경로 |
-| --- | --- |
-| 프로젝트 정보 (본 문서) | `backend/docs/project-overview.md` |
-| 기능 명세서 | `backend/docs/feature-spec.md` |
-| 기능 다이어그램 | `backend/docs/feature-diagram.md` |
-| API 명세서 | `backend/docs/api-spec.md` |
-| DB 설계 | `backend/docs/db/db-design.md`, `backend/docs/db/schema.sql` |
+| 문서 | 경로 | 설명 |
+| --- | --- | --- |
+| 프로젝트 정보 (본 문서) | `docs/project-overview.md` | 팀·기능 개요·기술 스택 |
+| 기능 명세서 | `docs/feature-spec.md` | 도메인별 44개 기능 + 구현 상태 |
+| 기능 다이어그램 | `docs/feature-diagram.md` | 마인드맵·역할권한·매칭 라이프사이클 |
+| API 명세 (도메인별) | `docs/api-spec/*.md` | 6개 도메인 분할: `auth.md` `notification.md` `match.md` `report.md` `map.md` `news.md` |
+| DB 설계 | `docs/db/db-design.md`, `docs/db/schema.sql`, `docs/db/er-diagram.md` | ERD·DDL |
+| 파일 트리 | `docs/file-tree.md` | 폴더·파일별 역할 |
+| Grafana 대시보드 | `docs/grafana-dashboard.json` | `/metrics` 시각화용 |
+| 디자인 시스템 | `../docs_design/` | 색상·간격 토큰 (앱 팀과 공유) |
+| 슈퍼파워 스펙 (작업 기록) | `docs/superpowers/specs/*.md` | 도메인별 설계·완성 기록 |
+
+## 10. 빠른 시작
+
+```bash
+# 1. 환경변수 준비
+cp .env.example .env
+
+# 2. 컨테이너 기동 (api/db/redis)
+docker compose up -d --build
+
+# 3. 헬스체크
+curl http://localhost:8000/health
+
+# 4. API 문서 / 콘솔
+open http://localhost:8000/docs       # Swagger
+open http://localhost:8000/redoc      # ReDoc
+open http://localhost:8000/admin      # SQLAdmin (관리자 로그인)
+open http://localhost:8000/           # 임시 백엔드 콘솔(테스트용)
+
+# 5. 마이그레이션
+docker compose exec api alembic revision --autogenerate -m "msg"
+docker compose exec api alembic upgrade head
+```

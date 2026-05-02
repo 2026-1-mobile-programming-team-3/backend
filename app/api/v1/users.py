@@ -3,12 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_current_volunteer
 from app.crud import volunteer_request as crud_vr
 from app.db.session import get_db
 from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.auth import MessageResponse
+from app.schemas.match import VolunteerStatsResponse
 from app.schemas.user import (
     AccountDeleteRequest,
     PasswordChangeRequest,
@@ -19,6 +20,7 @@ from app.schemas.user import (
     VolunteerRequestResponse,
 )
 from app.services import auth as auth_service
+from app.services import match as match_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -81,3 +83,11 @@ async def request_volunteer_role(
             detail="이미 처리 대기 중인 봉사자 전환 요청이 있습니다.",
         )
     return await crud_vr.create(db, user_id=current_user.id, message=data.message)
+
+
+@router.get("/me/volunteer-stats", response_model=VolunteerStatsResponse)
+async def get_volunteer_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_volunteer),
+):
+    return await match_service.get_volunteer_stats(db, user_id=current_user.id)

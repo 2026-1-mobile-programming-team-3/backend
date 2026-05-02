@@ -8,6 +8,7 @@ from app.models.enums import (
     UserRole,
     VolunteerRequestStatus,
 )
+from app.models.block import UserBlock
 from app.models.match import ChatMessage, Match, MatchApplication, MatchReview
 from app.models.news import CalendarEvent
 from app.models.notification import Notification
@@ -36,6 +37,7 @@ __all__ = [
     "StoreReview",
     "StoreStatus",
     "User",
+    "UserBlock",
     "UserRole",
     "VolunteerRequest",
     "VolunteerRequestStatus",

@@ -37,6 +37,9 @@
     <button class="tab-btn" data-tab="tab-volunteer">봉사자/Admin</button>
     <button class="tab-btn" data-tab="tab-map">Map</button>
     <button class="tab-btn" data-tab="tab-news">News</button>
+    <button class="tab-btn" data-tab="tab-notification">알림</button>
+    <button class="tab-btn" data-tab="tab-match">매칭</button>
+    <button class="tab-btn" data-tab="tab-report">신고/차단</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -64,11 +67,11 @@
             <li><strong>Auth</strong> — 회원가입 / 로그인 / 토큰 관리 / 정보 수정 / 봉사자 신청 <span class="tag tag-done">완료</span></li>
             <li><strong>반려동물</strong> — 등록 / 수정 / 삭제 <span class="tag tag-done">완료</span></li>
             <li><strong>News</strong> — 정책 뉴스 / 캘린더 <span class="tag tag-done">완료</span></li>
-            <li><strong>Map</strong> — 매장 반경/검색/필터/상세/리뷰 조회 <span class="tag tag-done">부분 완료</span> <span class="muted">(매장 등록·리뷰 작성·봉사 위치 미구현)</span></li>
+            <li><strong>Map</strong> — 매장 반경/검색/필터/상세/리뷰 + 봉사 위치 + 매장 CRUD <span class="tag tag-done">완료</span></li>
             <li><strong>Admin</strong> — 봉사자 요청 목록/승인·거부 <span class="tag tag-done">완료</span></li>
-            <li><strong>Notification</strong> — 알림 목록 / 읽음 처리 <span class="tag">예정</span></li>
-            <li><strong>Match</strong> — 이동 지원 요청 / 봉사 신청 <span class="tag">예정</span></li>
-            <li><strong>Report</strong> — 신고 <span class="tag">예정</span></li>
+            <li><strong>Notification</strong> — 알림 목록·미읽음 / FCM 등록 / 전체 읽음 처리 <span class="tag tag-done">완료</span></li>
+            <li><strong>Match</strong> — 이동 지원 요청 CRUD / 봉사 신청·수락 / 봉사 통계 <span class="tag tag-done">부분 완료</span> <span class="muted">(상태 업데이트·채팅·후기 미구현)</span></li>
+            <li><strong>Report</strong> — 사용자 신고 / 차단 CRUD <span class="tag tag-done">부분 완료</span> <span class="muted">(채팅 신고 미구현)</span></li>
         </ul>
     </section>
 
@@ -386,6 +389,187 @@
         </div>
         <div class="actions"><button id="btn-vr-process">처리</button></div>
         <pre id="out-vr-process">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 3.14 개인별 누적 봉사 이력 통계 -->
+    <section class="card">
+        <h3>3.14 봉사 통계 &nbsp;<code>GET /api/v1/users/me/volunteer-stats</code></h3>
+        <p class="muted">VOLUNTEER 권한 토큰 필요. USER 토큰으로 호출하면 403. <code>total_hours</code>는 봉사 시간 컬럼이 없어 항상 0.0.</p>
+        <div class="actions"><button id="btn-volunteer-stats">통계 조회</button></div>
+        <pre id="out-volunteer-stats">아직 호출하지 않음</pre>
+    </section>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     탭: 알림
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-notification" class="tab-panel">
+
+    <!-- 2.2 알림 전체 읽음 처리 -->
+    <section class="card">
+        <h3>2.2 알림 전체 읽음 처리 &nbsp;<code>PATCH /api/v1/notifications/read-all</code></h3>
+        <p class="muted">로그인 사용자의 안 읽은 알림 모두를 read_at = NOW()로 갱신. 변경된 건수를 반환합니다. 안 읽은 알림이 없어도 200 OK + updated_count 0.</p>
+        <div class="actions"><button id="btn-notif-read-all">전체 읽음 처리</button></div>
+        <pre id="out-notif-read-all">아직 호출하지 않음</pre>
+    </section>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     탭: 매칭
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-match" class="tab-panel">
+
+    <!-- 3.1 이동 지원 요청 글 작성 -->
+    <section class="card">
+        <h3>3.1 이동 지원 요청 글 작성 &nbsp;<code>POST /api/v1/matches</code></h3>
+        <p class="muted">작성 성공 시 아래 3.2·3.3 폼의 match_id가 자동 입력됩니다.</p>
+        <form id="form-create-match">
+            <div class="form-row">
+                <div class="field">
+                    <label>제목 <span class="muted">1~100자</span></label>
+                    <input name="title" placeholder="정왕동 실외견 병원 이동 부탁드립니다" required />
+                </div>
+                <div class="field">
+                    <label>희망 날짜 <span class="muted">선택, YYYY-MM-DD</span></label>
+                    <input name="desired_date" placeholder="2026-05-10" />
+                </div>
+            </div>
+            <div class="field">
+                <label>본문</label>
+                <textarea name="content" rows="3" placeholder="중성화 수술 위해 동물병원까지 이동 봉사를 부탁드립니다." required></textarea>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>위도 (latitude)</label>
+                    <input name="latitude" type="number" step="0.0001" placeholder="37.3451" value="37.3451" required />
+                </div>
+                <div class="field">
+                    <label>경도 (longitude)</label>
+                    <input name="longitude" type="number" step="0.0001" placeholder="126.7322" value="126.7322" required />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>주소 <span class="muted">선택, 최대 255자</span></label>
+                    <input name="address" placeholder="경기도 시흥시 정왕동 ..." />
+                </div>
+                <div class="field">
+                    <label>pet_id <span class="muted">선택, 본인 소유</span></label>
+                    <input name="pet_id" type="number" min="1" placeholder="1" />
+                </div>
+            </div>
+            <div class="actions"><button type="submit">요청 글 작성</button></div>
+        </form>
+        <pre id="out-create-match">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 3.2 이동 지원 요청 글 수정 -->
+    <section class="card">
+        <h3>3.2 이동 지원 요청 글 수정 &nbsp;<code>PATCH /api/v1/matches/{match_id}</code></h3>
+        <p class="muted">변경할 필드만 입력. 비워두면 그대로 유지. <strong>latitude/longitude는 함께 보내야 함</strong> — 한쪽만 입력하면 422.</p>
+        <form id="form-update-match">
+            <div class="form-row">
+                <div class="field">
+                    <label>match_id <span class="muted">3.1 작성 시 자동 입력</span></label>
+                    <input id="update-match-id" type="number" class="match-id-input" placeholder="1" required />
+                </div>
+                <div class="field">
+                    <label>제목 <span class="muted">선택</span></label>
+                    <input name="title" placeholder="수정된 제목" />
+                </div>
+            </div>
+            <div class="field">
+                <label>본문 <span class="muted">선택</span></label>
+                <textarea name="content" rows="2" placeholder="수정된 내용"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>latitude <span class="muted">선택, longitude와 함께</span></label>
+                    <input name="latitude" type="number" step="0.0001" />
+                </div>
+                <div class="field">
+                    <label>longitude <span class="muted">선택, latitude와 함께</span></label>
+                    <input name="longitude" type="number" step="0.0001" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="field">
+                    <label>주소 <span class="muted">선택</span></label>
+                    <input name="address" placeholder="수정된 주소" />
+                </div>
+                <div class="field">
+                    <label>희망 날짜 <span class="muted">선택, YYYY-MM-DD</span></label>
+                    <input name="desired_date" placeholder="2026-05-15" />
+                </div>
+            </div>
+            <div class="field">
+                <label>pet_id <span class="muted">선택</span></label>
+                <input name="pet_id" type="number" min="1" />
+            </div>
+            <div class="actions"><button type="submit">수정</button></div>
+        </form>
+        <pre id="out-update-match">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 3.3 이동 지원 요청 글 삭제 -->
+    <section class="card">
+        <h3>3.3 이동 지원 요청 글 삭제 &nbsp;<code>DELETE /api/v1/matches/{match_id}</code></h3>
+        <p class="muted">soft delete. WAITING/MATCHING 상태에서만 가능. 이후 GET 시 404.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>match_id <span class="muted">3.1 작성 시 자동 입력</span></label>
+                <input id="delete-match-id" type="number" class="match-id-input" placeholder="1" />
+            </div>
+        </div>
+        <div class="actions"><button id="btn-delete-match" class="btn-danger">삭제</button></div>
+        <pre id="out-delete-match">아직 호출하지 않음</pre>
+    </section>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     탭: 신고/차단
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-report" class="tab-panel">
+
+    <!-- 4.3 사용자 차단 등록 -->
+    <section class="card">
+        <h3>4.3 사용자 차단 등록 &nbsp;<code>POST /api/v1/users/me/blocks</code></h3>
+        <p class="muted">자기차단(target == 본인) → 400. 중복 차단 → 409. 차단 성공 시 4.5 폼의 block_id가 자동 입력됩니다.</p>
+        <form id="form-create-block">
+            <div class="form-row">
+                <div class="field">
+                    <label>target_user_id <span class="muted">차단할 사용자 ID</span></label>
+                    <input name="target_user_id" type="number" min="1" placeholder="2" required />
+                </div>
+            </div>
+            <div class="actions"><button type="submit">차단</button></div>
+        </form>
+        <pre id="out-create-block">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 4.4 차단 사용자 목록 조회 -->
+    <section class="card">
+        <h3>4.4 차단 사용자 목록 조회 &nbsp;<code>GET /api/v1/users/me/blocks</code></h3>
+        <p class="muted">created_at DESC 정렬. 대상이 탈퇴했으면 target_nickname은 null.</p>
+        <div class="actions"><button id="btn-list-blocks">목록 조회</button></div>
+        <pre id="out-list-blocks">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 4.5 차단 해제 -->
+    <section class="card">
+        <h3>4.5 차단 해제 &nbsp;<code>DELETE /api/v1/users/me/blocks/{block_id}</code></h3>
+        <p class="muted">본인이 만든 차단만 해제 가능. 다른 사람의 block_id를 보내면 404.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>block_id <span class="muted">4.3 차단 시 자동 입력</span></label>
+                <input id="delete-block-id" type="number" min="1" placeholder="1" />
+            </div>
+        </div>
+        <div class="actions"><button id="btn-delete-block" class="btn-danger">차단 해제</button></div>
+        <pre id="out-delete-block">아직 호출하지 않음</pre>
     </section>
 
 </div>
@@ -819,6 +1003,86 @@ document.getElementById("btn-map-reviews").addEventListener("click", async () =>
     try {
         const { status, body } = await callApi(`/api/v1/maps/stores/${id}/reviews`);
         render(out, status, body);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 3.14 봉사 통계 ──────────────────────────────────────────────────────────
+bindCall("btn-volunteer-stats", "out-volunteer-stats",
+    "/api/v1/users/me/volunteer-stats", { auth: true });
+
+// ─── 2.2 알림 전체 읽음 처리 ─────────────────────────────────────────────────
+document.getElementById("btn-notif-read-all").addEventListener("click", async () => {
+    const out = document.getElementById("out-notif-read-all");
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const { status, body } = await callApi("/api/v1/notifications/read-all", {
+            method: "PATCH", headers: authHeaders(),
+        });
+        render(out, status, body);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 3.1 이동 지원 요청 글 작성 → match_id 자동 입력 ─────────────────────────
+bindForm("form-create-match", "out-create-match", "/api/v1/matches", {
+    auth: true,
+    onSuccess(resp) {
+        document.querySelectorAll(".match-id-input").forEach(el => { el.value = resp.match_id; });
+    },
+});
+
+// ─── 3.2 이동 지원 요청 글 수정 ──────────────────────────────────────────────
+document.getElementById("form-update-match").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const out = document.getElementById("out-update-match");
+    const matchId = document.getElementById("update-match-id").value;
+    if (!matchId) { render(out, 0, "match_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const body = readForm("form-update-match");
+    try {
+        const { status, body: resp } = await callApi(`/api/v1/matches/${matchId}`, {
+            method: "PATCH", body, headers: authHeaders(),
+        });
+        render(out, status, resp);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 3.3 이동 지원 요청 글 삭제 ──────────────────────────────────────────────
+document.getElementById("btn-delete-match").addEventListener("click", async () => {
+    const out = document.getElementById("out-delete-match");
+    const matchId = document.getElementById("delete-match-id").value;
+    if (!matchId) { render(out, 0, "match_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const { status, body } = await callApi(`/api/v1/matches/${matchId}`, {
+            method: "DELETE", headers: authHeaders(),
+        });
+        render(out, status, status === 204 ? "삭제 완료" : body);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 4.3 사용자 차단 등록 → block_id 자동 입력 ───────────────────────────────
+bindForm("form-create-block", "out-create-block", "/api/v1/users/me/blocks", {
+    auth: true,
+    onSuccess(resp) {
+        const el = document.getElementById("delete-block-id");
+        if (el) el.value = resp.block_id;
+    },
+});
+
+// ─── 4.4 차단 사용자 목록 조회 ───────────────────────────────────────────────
+bindCall("btn-list-blocks", "out-list-blocks", "/api/v1/users/me/blocks", { auth: true });
+
+// ─── 4.5 차단 해제 ───────────────────────────────────────────────────────────
+document.getElementById("btn-delete-block").addEventListener("click", async () => {
+    const out = document.getElementById("out-delete-block");
+    const blockId = document.getElementById("delete-block-id").value;
+    if (!blockId) { render(out, 0, "block_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const { status, body } = await callApi(`/api/v1/users/me/blocks/${blockId}`, {
+            method: "DELETE", headers: authHeaders(),
+        });
+        render(out, status, status === 204 ? "차단 해제 완료" : body);
     } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
 });
 </script>
