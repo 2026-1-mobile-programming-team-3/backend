@@ -46,6 +46,37 @@ https://{host}/api/v1
 - 우선순위: T0 (필수) / T1 (부가) / T2 (확장)
 - 난이도: 하 / 중 / 상
 
+### 0.7 관리자 권한 (Admin) — 처음 보는 사람 위한 설명
+
+이 섹션은 "관리자만 호출할 수 있는 API"가 어떻게 작동하는지 처음부터 설명한다.
+
+#### 사용자 등급 — `role` 컬럼
+
+모든 사용자는 `users` 테이블에 한 행씩 존재하고, 그 행의 `role` 컬럼에 다음 셋 중 하나가 들어 있다.
+
+| 값 | 의미 | 어떻게 부여되나 |
+| --- | --- | --- |
+| `USER` | 일반 사용자 | **회원가입하면 자동으로 이 값으로 시작.** 별도 작업 필요 없음 |
+| `VOLUNTEER` | 봉사자 | `POST /users/me/volunteer-request`로 신청 → 관리자가 `PATCH /admin/volunteer-requests/{id}`에서 `APPROVE` 하면 자동 승급 |
+| `ADMIN` | 운영자 | **회원가입으로는 절대 만들어지지 않는다.** 운영자가 SQLAdmin 화면에서 수동으로 부여 (아래 부트스트랩 절 참고) |
+
+#### "이 요청자가 관리자인가?"는 어떻게 판단하나
+
+- JWT(액세스 토큰) 자체에는 **`role`이 들어 있지 않다.** `sub`(user_id)만 있다.
+- 매 요청마다 서버가 토큰을 디코드해서 user_id를 꺼내고, **그때마다 DB에서 `users` 테이블을 한 번 조회한다.** 그 행의 `role` 값이 권위 있는 정보.
+- 따라서 어떤 사용자의 `role`이 바뀌면 **다음 요청부터 즉시 반영된다** — 토큰 재발급 안 해도 된다.
+- 관리자 전용 API는 모두 URL 경로에 `/admin/`이 들어 있다 (예: `/api/v1/admin/volunteer-requests`). 일반 사용자가 호출하면 `403 관리자 권한이 필요합니다.`
+
+#### 최초의 관리자는 어떻게 만드나 (부트스트랩)
+
+1. 일단 평범하게 회원가입해서 USER로 가입한다 (아무 이메일/비밀번호로).
+2. 운영자가 SQLAdmin 화면(`http://{host}/admin`)에 접속해 로그인한다. SQLAdmin 로그인 자격은 일반 사용자 계정과는 별개로 환경변수에 설정된 운영용 자격이다.
+3. 좌측 메뉴에서 `Users` 테이블을 열고, 1번에서 가입한 사용자 행을 찾는다.
+4. 해당 행의 `role` 컬럼을 `USER` → `ADMIN`으로 수정·저장.
+5. 그 사용자 계정으로 다시 로그인해서 받은 access token을 `Authorization: Bearer ...` 헤더에 실어 `/api/v1/admin/...` 엔드포인트를 호출하면 통과.
+
+> 즉, **관리자 만드는 API는 일부러 만들지 않았다.** 권한 부여를 API로 노출하면 무한 권한 상승 위험이 있어서, 운영자만 접근 가능한 SQLAdmin UI에서만 가능하게 막아 둔 것이다.
+
 ---
 
 ## 1. 사용자 관리 (Auth)
@@ -380,17 +411,22 @@ https://{host}/api/v1
 
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
-| introduction | string | Y | 자기소개 (50자 이상) |
-| experience | string | N | 봉사 경험 |
-| has_vehicle | boolean | Y | 차량 보유 여부 |
+| message | string | Y | 자기소개·지원 동기·봉사 경험 등을 자유 형식으로 작성 |
+
+```json
+{
+  "message": "유기동물 봉사활동 2년 경험이 있습니다. 시흥시 인근에 거주하며 차량을 소유하고 있어 이동 지원이 가능합니다."
+}
+```
 
 **Response — 201 Created**
 ```json
 {
-  "request_id": 10,
+  "id": 10,
+  "user_id": 5,
+  "message": "유기동물 봉사활동 2년 경험이 있습니다. ...",
   "status": "PENDING",
-  "submitted_at": "2026-04-15T12:00:00Z",
-  "message": "봉사자 신청이 접수되었습니다. 관리자 승인을 기다려 주세요."
+  "created_at": "2026-04-15T12:00:00Z"
 }
 ```
 
@@ -398,9 +434,9 @@ https://{host}/api/v1
 
 | 상태 코드 | 설명 |
 | --- | --- |
-| 400 | 유효성 검증 실패 (자기소개 50자 미만) |
+| 400 | 유효성 검증 실패 |
 | 401 | 인증 실패 |
-| 409 | 이미 봉사자이거나 대기 중 요청 존재 |
+| 409 | 이미 봉사자/관리자이거나 대기 중 요청이 존재 |
 
 ---
 
@@ -412,9 +448,9 @@ https://{host}/api/v1
 
 | 필드 | 타입 | 필수 | 기본값 | 설명 |
 | --- | --- | --- | --- | --- |
-| status | string | N | PENDING | `PENDING` / `APPROVED` / `REJECTED` |
-| page | integer | N | 1 | 페이지 |
-| size | integer | N | 20 | 페이지 크기 |
+| status | string | N | PENDING | `PENDING` / `APPROVED` / `REJECTED` 중 하나 |
+| page | integer | N | 1 | 페이지 (1부터) |
+| size | integer | N | 20 | 페이지 크기 (1~100) |
 
 **Response — 200 OK**
 ```json
@@ -424,11 +460,10 @@ https://{host}/api/v1
       "request_id": 10,
       "user_id": 5,
       "nickname": "댕댕이주인",
-      "introduction": "유기동물 봉사활동 2년 경험이 있습니다.",
-      "experience": "시흥시 유기동물보호센터 자원봉사 참여",
-      "has_vehicle": true,
+      "message": "유기동물 봉사활동 2년 경험이 있습니다. ...",
       "status": "PENDING",
-      "submitted_at": "2026-04-15T12:00:00Z"
+      "submitted_at": "2026-04-15T12:00:00Z",
+      "processed_at": null
     }
   ],
   "total": 1,
@@ -455,7 +490,12 @@ https://{host}/api/v1
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
 | action | string | Y | `APPROVE` 또는 `REJECT` |
-| admin_comment | string | N | 관리자 코멘트 |
+| admin_comment | string | N | (수신만 받고 현재는 저장하지 않음. 향후 컬럼 추가 시 보존 예정) |
+
+**동작**
+- `APPROVE`: 요청의 `status` → `APPROVED`, `processed_at` 갱신. 신청자의 `users.role`이 `USER`이면 `VOLUNTEER`로 자동 승급.
+- `REJECT`: 요청의 `status` → `REJECTED`, `processed_at` 갱신. `users.role`은 변경되지 않음.
+- 이미 처리된 요청(`PENDING`이 아닌 상태)에 다시 호출하면 `409`.
 
 **Response — 200 OK**
 ```json
@@ -463,7 +503,6 @@ https://{host}/api/v1
   "request_id": 10,
   "user_id": 5,
   "status": "APPROVED",
-  "admin_comment": "승인합니다. 활동을 시작해 주세요.",
   "processed_at": "2026-04-15T15:00:00Z"
 }
 ```
@@ -472,7 +511,7 @@ https://{host}/api/v1
 
 | 상태 코드 | 설명 |
 | --- | --- |
-| 400 | action 값 오류 |
+| 400 | action 값 오류 (`APPROVE`/`REJECT` 외) |
 | 401 | 인증 실패 |
 | 403 | 관리자 권한 없음 |
 | 404 | request_id 없음 |
