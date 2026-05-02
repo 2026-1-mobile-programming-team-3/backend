@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from geoalchemy2 import Geography, Geometry
 from sqlalchemy import func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -132,3 +134,96 @@ async def review_pet_allowed_rate(db: AsyncSession, store_id: int) -> float:
     result = await db.execute(stmt, {"store_id": store_id})
     value = result.scalar_one()
     return float(value) if value is not None else 0.0
+
+
+async def get_by_id_for_owner(db: AsyncSession, store_id: int) -> Store | None:
+    """deleted_at·status 무관, 단순 PK 조회. 소유자 검증은 호출자 책임."""
+    stmt = select(Store).where(Store.id == store_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def create_store(
+    db: AsyncSession,
+    *,
+    name: str,
+    address: str,
+    phone: str | None,
+    category: StoreCategory,
+    lat: float,
+    lng: float,
+    operating_hours: str | None,
+    photo_urls: list[str],
+    is_pet_allowed: bool,
+    created_by: int,
+) -> Store:
+    """status=PENDING 고정. location은 ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography."""
+    store = Store(
+        name=name,
+        address=address,
+        phone=phone,
+        category=category,
+        location=func.ST_SetSRID(func.ST_MakePoint(lng, lat), 4326).cast(Geography),
+        operating_hours=operating_hours,
+        photo_urls=photo_urls,
+        is_pet_allowed=is_pet_allowed,
+        status=StoreStatus.PENDING,
+        created_by=created_by,
+    )
+    db.add(store)
+    await db.commit()
+    await db.refresh(store)
+    return store
+
+
+async def update_store(db: AsyncSession, store: Store, **fields) -> Store:
+    """fields의 키마다 setattr. lat·lng가 함께 있으면 location 갱신.
+    commit은 호출자 책임."""
+    lat = fields.pop("latitude", None)
+    lng = fields.pop("longitude", None)
+    for key, value in fields.items():
+        setattr(store, key, value)
+    if lat is not None and lng is not None:
+        store.location = func.ST_SetSRID(
+            func.ST_MakePoint(lng, lat), 4326
+        ).cast(Geography)
+    return store
+
+
+async def soft_delete_store(db: AsyncSession, store: Store) -> None:
+    """deleted_at = NOW(). commit은 호출자 책임."""
+    store.deleted_at = datetime.now(timezone.utc)
+
+
+async def create_review(
+    db: AsyncSession,
+    *,
+    store_id: int,
+    author_id: int,
+    rating: int,
+    is_pet_allowed: bool,
+    content: str,
+) -> StoreReview:
+    """unique(store_id, author_id) 위반 시 IntegrityError 발생 — 호출자가 잡아 409 변환."""
+    review = StoreReview(
+        store_id=store_id,
+        author_id=author_id,
+        rating=rating,
+        is_pet_allowed=is_pet_allowed,
+        content=content,
+    )
+    db.add(review)
+    await db.commit()
+    await db.refresh(review)
+    return review
+
+
+async def get_review(db: AsyncSession, review_id: int) -> StoreReview | None:
+    stmt = select(StoreReview).where(StoreReview.id == review_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def delete_review(db: AsyncSession, review: StoreReview) -> None:
+    """commit은 호출자 책임."""
+    await db.delete(review)
