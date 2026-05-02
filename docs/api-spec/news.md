@@ -11,35 +11,55 @@
 **인증 불필요**
 
 **Response — 200 OK**
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| news_id | string | 12자 hex (네이버 link의 sha256 prefix) |
+| title | string | HTML 태그·엔티티 제거된 제목 |
+| summary | string | HTML 태그·엔티티 제거된 요약 |
+| published_date | string | `YYYY-MM-DD` |
+| link | string | 네이버 뉴스 viewer URL (원문 링크) |
+
 ```json
 {
   "news": [
     {
-      "news_id": 1,
+      "news_id": "abc123def456",
       "title": "2026년 실외 사육견 중성화 수술비 지원 안내",
       "summary": "시흥시 거주 취약계층 대상...",
-      "published_date": "2026-04-10"
+      "published_date": "2026-04-10",
+      "link": "https://n.news.naver.com/article/..."
     }
   ]
 }
 ```
 
+> 네이버 뉴스 검색 API를 호출해 시흥 반려동물 + 정책 키워드로 조합. Redis 4시간 캐시.
+
 ---
 
-### 6.2 정책 뉴스 상세 조회 — `GET /news/{newsId}` [T1]
+### 6.2 정책 뉴스 상세 조회 — `GET /news/{news_id}` [T1]
 
-**인증 불필요** / **Path**: `newsId` (integer)
+**인증 불필요** / **Path**: `news_id` (string, 12자 hex)
 
 **Response — 200 OK**
 ```json
 {
-  "news_id": 1,
+  "news_id": "abc123def456",
   "title": "2026년 실외 사육견 중성화 수술비 지원 안내",
-  "content": "시흥시는 무분별한 개체수 증가를 막기 위해... (전체 본문)",
-  "official_link": "https://www.siheung.go.kr/...",
+  "content": "시흥시는 무분별한 개체수 증가를 막기 위해...",
+  "official_link": "https://n.news.naver.com/article/...",
   "published_date": "2026-04-10"
 }
 ```
+
+> 네이버 뉴스 API는 본문을 제공하지 않으므로 `content`는 6.1의 `summary`와 동일. `official_link`는 6.1의 `link`와 동일.
+
+**Errors**
+
+| 상태 코드 | 설명 |
+| --- | --- |
+| 404 | 캐시에 해당 `news_id` 없음 |
 
 ---
 
