@@ -34,6 +34,8 @@
     <button class="tab-btn" data-tab="tab-basic">기본</button>
     <button class="tab-btn" data-tab="tab-auth">Auth</button>
     <button class="tab-btn" data-tab="tab-pets">반려동물</button>
+    <button class="tab-btn" data-tab="tab-volunteer">봉사자/Admin</button>
+    <button class="tab-btn" data-tab="tab-map">Map</button>
     <button class="tab-btn" data-tab="tab-news">News</button>
 </div>
 
@@ -59,13 +61,14 @@
     <section class="card">
         <h3>도메인 작업 현황</h3>
         <ul class="domains">
-            <li><strong>Auth</strong> — 회원가입 / 로그인 / 토큰 관리 / 정보 수정 <span class="tag tag-done">완료</span></li>
+            <li><strong>Auth</strong> — 회원가입 / 로그인 / 토큰 관리 / 정보 수정 / 봉사자 신청 <span class="tag tag-done">완료</span></li>
             <li><strong>반려동물</strong> — 등록 / 수정 / 삭제 <span class="tag tag-done">완료</span></li>
             <li><strong>News</strong> — 정책 뉴스 / 캘린더 <span class="tag tag-done">완료</span></li>
+            <li><strong>Map</strong> — 매장 반경/검색/필터/상세/리뷰 조회 <span class="tag tag-done">부분 완료</span> <span class="muted">(매장 등록·리뷰 작성·봉사 위치 미구현)</span></li>
+            <li><strong>Admin</strong> — 봉사자 요청 목록/승인·거부 <span class="tag tag-done">완료</span></li>
             <li><strong>Notification</strong> — 알림 목록 / 읽음 처리 <span class="tag">예정</span></li>
             <li><strong>Match</strong> — 이동 지원 요청 / 봉사 신청 <span class="tag">예정</span></li>
             <li><strong>Report</strong> — 신고 <span class="tag">예정</span></li>
-            <li><strong>Map</strong> — 매장 지도 / 리뷰 <span class="tag">예정</span></li>
         </ul>
     </section>
 
@@ -315,6 +318,178 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
+     탭: 봉사자/Admin
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-volunteer" class="tab-panel">
+
+    <!-- 1.12 봉사자 역할 전환 요청 -->
+    <section class="card">
+        <h3>1.12 봉사자 역할 전환 요청 &nbsp;<code>POST /api/v1/users/me/volunteer-request</code></h3>
+        <p class="muted">일반 사용자가 봉사자 권한을 신청합니다. 한 사용자당 처리 대기(PENDING) 요청은 1건만 허용.</p>
+        <form id="form-volunteer-request">
+            <div class="field">
+                <label>신청 메시지 <span class="muted">자기소개·경험·차량 보유 여부 등을 자유롭게</span></label>
+                <textarea name="message" rows="3" placeholder="유기동물 봉사활동 2년 경험이 있습니다. 차량 보유." required></textarea>
+            </div>
+            <div class="actions"><button type="submit">봉사자 신청</button></div>
+        </form>
+        <pre id="out-volunteer-request">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 1.13 (관리자) 봉사자 요청 목록 조회 -->
+    <section class="card">
+        <h3>1.13 (관리자) 봉사자 요청 목록 &nbsp;<code>GET /api/v1/admin/volunteer-requests</code></h3>
+        <p class="muted">ADMIN 권한 토큰 필요. 일반 USER 토큰으로 호출하면 403. 관리자 만드는 법은 SQLAdmin에서 users.role을 ADMIN으로 직접 수정.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>상태 필터</label>
+                <select id="vr-list-status">
+                    <option value="PENDING">PENDING (기본)</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="REJECTED">REJECTED</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>page</label>
+                <input id="vr-list-page" type="number" min="1" value="1" />
+            </div>
+            <div class="field">
+                <label>size <span class="muted">1~100</span></label>
+                <input id="vr-list-size" type="number" min="1" max="100" value="20" />
+            </div>
+        </div>
+        <p class="muted">조회 성공 시 첫 번째 항목의 request_id가 아래 1.14 폼에 자동 입력됩니다.</p>
+        <div class="actions"><button id="btn-vr-list">목록 조회</button></div>
+        <pre id="out-vr-list">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 1.14 (관리자) 봉사자 요청 승인/거부 -->
+    <section class="card">
+        <h3>1.14 (관리자) 봉사자 요청 승인/거부 &nbsp;<code>PATCH /api/v1/admin/volunteer-requests/{request_id}</code></h3>
+        <p class="muted">APPROVE 시 신청자의 role이 USER → VOLUNTEER로 자동 승급됩니다 (한 트랜잭션). 이미 처리된 요청에 다시 호출하면 409.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>request_id <span class="muted">목록 조회 시 자동 입력</span></label>
+                <input id="vr-process-id" type="number" placeholder="1" required />
+            </div>
+            <div class="field">
+                <label>action</label>
+                <select id="vr-process-action">
+                    <option value="APPROVE">APPROVE (승인)</option>
+                    <option value="REJECT">REJECT (거부)</option>
+                </select>
+            </div>
+        </div>
+        <div class="field">
+            <label>admin_comment <span class="muted">선택 — 현재 저장 안 됨, 향후 컬럼 추가 시 보존</span></label>
+            <input id="vr-process-comment" placeholder="승인합니다." />
+        </div>
+        <div class="actions"><button id="btn-vr-process">처리</button></div>
+        <pre id="out-vr-process">아직 호출하지 않음</pre>
+    </section>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     탭: Map
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-map" class="tab-panel">
+
+    <!-- 5.1 매장 반경 검색 -->
+    <section class="card">
+        <h3>5.1 매장 반경 검색 &nbsp;<code>GET /api/v1/maps/stores</code></h3>
+        <p class="muted">PostGIS <code>ST_DWithin</code>으로 좌표 + 반경 내 매장을 거리 오름차순으로 반환. 결과에 <code>distance_m</code>(미터) 포함.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>위도 (lat)</label>
+                <input id="map-near-lat" type="number" step="0.0001" placeholder="37.3752" value="37.3752" />
+            </div>
+            <div class="field">
+                <label>경도 (lng)</label>
+                <input id="map-near-lng" type="number" step="0.0001" placeholder="126.7281" value="126.7281" />
+            </div>
+            <div class="field">
+                <label>radius (m) <span class="muted">기본 2000, 최대 50000</span></label>
+                <input id="map-near-radius" type="number" min="1" max="50000" value="20000" />
+            </div>
+        </div>
+        <p class="muted">조회 성공 시 첫 번째 store_id가 아래 5.3·5.9 폼에 자동 입력됩니다.</p>
+        <div class="actions"><button id="btn-map-near">반경 검색</button></div>
+        <pre id="out-map-near">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 5.4 매장 검색 -->
+    <section class="card">
+        <h3>5.4 매장 검색 &nbsp;<code>GET /api/v1/maps/stores/search</code></h3>
+        <p class="muted">name 또는 address ILIKE 매칭. 시드: "배곧", "정왕", "공원" 등으로 시도.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>keyword</label>
+                <input id="map-search-keyword" placeholder="배곧" />
+            </div>
+        </div>
+        <div class="actions"><button id="btn-map-search">검색</button></div>
+        <pre id="out-map-search">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 5.5 매장 필터 -->
+    <section class="card">
+        <h3>5.5 매장 필터 &nbsp;<code>GET /api/v1/maps/stores/filter</code></h3>
+        <p class="muted">두 파라미터 모두 선택. 비워두면 모든 APPROVED 매장 반환.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>category</label>
+                <select id="map-filter-category">
+                    <option value="">— 전체 —</option>
+                    <option value="CAFE">CAFE</option>
+                    <option value="RESTAURANT">RESTAURANT</option>
+                    <option value="PARK">PARK</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>is_pet_allowed</label>
+                <select id="map-filter-pet">
+                    <option value="">— 무관 —</option>
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+        </div>
+        <div class="actions"><button id="btn-map-filter">필터 조회</button></div>
+        <pre id="out-map-filter">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 5.3 매장 상세 -->
+    <section class="card">
+        <h3>5.3 매장 상세 &nbsp;<code>GET /api/v1/maps/stores/{storeId}</code></h3>
+        <p class="muted">5.1 반경 검색 성공 시 store_id가 자동 입력됩니다.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>store_id</label>
+                <input id="map-detail-id" type="number" class="store-id-input" placeholder="1" />
+            </div>
+        </div>
+        <div class="actions"><button id="btn-map-detail">상세 조회</button></div>
+        <pre id="out-map-detail">아직 호출하지 않음</pre>
+    </section>
+
+    <!-- 5.9 매장 리뷰 조회 -->
+    <section class="card">
+        <h3>5.9 매장 리뷰 조회 &nbsp;<code>GET /api/v1/maps/stores/{storeId}/reviews</code></h3>
+        <p class="muted">시드 매장은 리뷰가 없으니 빈 배열이 정상. 작성자 탈퇴 시 nickname은 "(탈퇴한 사용자)".</p>
+        <div class="form-row">
+            <div class="field">
+                <label>store_id</label>
+                <input id="map-reviews-id" type="number" class="store-id-input" placeholder="1" />
+            </div>
+        </div>
+        <div class="actions"><button id="btn-map-reviews">리뷰 조회</button></div>
+        <pre id="out-map-reviews">아직 호출하지 않음</pre>
+    </section>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
      탭: News
      ══════════════════════════════════════════════════════════════════════════ -->
 <div id="tab-news" class="tab-panel">
@@ -530,6 +705,119 @@ document.getElementById("btn-cal-daily").addEventListener("click", async () => {
     out.textContent = "호출 중..."; delete out.dataset.status;
     try {
         const { status, body } = await callApi(`/api/v1/news/calendar/daily?date=${date}`);
+        render(out, status, body);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 1.12 봉사자 역할 전환 요청 ───────────────────────────────────────────────
+bindForm("form-volunteer-request", "out-volunteer-request",
+    "/api/v1/users/me/volunteer-request", { auth: true });
+
+// ─── 1.13 (관리자) 봉사자 요청 목록 → 첫 request_id 자동 입력 ─────────────────
+document.getElementById("btn-vr-list").addEventListener("click", async () => {
+    const out    = document.getElementById("out-vr-list");
+    const status = document.getElementById("vr-list-status").value;
+    const page   = document.getElementById("vr-list-page").value || "1";
+    const size   = document.getElementById("vr-list-size").value || "20";
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const path = `/api/v1/admin/volunteer-requests?status=${status}&page=${page}&size=${size}`;
+        const { status: code, body } = await callApi(path, { headers: authHeaders() });
+        render(out, code, body);
+        const first = body?.items?.[0];
+        if (code === 200 && first) {
+            document.getElementById("vr-process-id").value = first.request_id;
+        }
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 1.14 (관리자) 봉사자 요청 승인/거부 ──────────────────────────────────────
+document.getElementById("btn-vr-process").addEventListener("click", async () => {
+    const out     = document.getElementById("out-vr-process");
+    const id      = document.getElementById("vr-process-id").value;
+    const action  = document.getElementById("vr-process-action").value;
+    const comment = document.getElementById("vr-process-comment").value;
+    if (!id) { render(out, 0, "request_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const body = { action };
+    if (comment) body.admin_comment = comment;
+    try {
+        const { status, body: resp } = await callApi(
+            `/api/v1/admin/volunteer-requests/${id}`,
+            { method: "PATCH", body, headers: authHeaders() }
+        );
+        render(out, status, resp);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 5.1 매장 반경 검색 → 첫 store_id 자동 입력 ───────────────────────────────
+document.getElementById("btn-map-near").addEventListener("click", async () => {
+    const out    = document.getElementById("out-map-near");
+    const lat    = document.getElementById("map-near-lat").value;
+    const lng    = document.getElementById("map-near-lng").value;
+    const radius = document.getElementById("map-near-radius").value || "2000";
+    if (!lat || !lng) { render(out, 0, "lat과 lng를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const path = `/api/v1/maps/stores?lat=${lat}&lng=${lng}&radius=${radius}`;
+        const { status, body } = await callApi(path);
+        render(out, status, body);
+        const first = body?.stores?.[0];
+        if (status === 200 && first) {
+            document.querySelectorAll(".store-id-input").forEach(el => { el.value = first.store_id; });
+        }
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 5.4 매장 검색 ───────────────────────────────────────────────────────────
+document.getElementById("btn-map-search").addEventListener("click", async () => {
+    const out     = document.getElementById("out-map-search");
+    const keyword = document.getElementById("map-search-keyword").value.trim();
+    if (!keyword) { render(out, 0, "keyword를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const { status, body } = await callApi(
+            `/api/v1/maps/stores/search?keyword=${encodeURIComponent(keyword)}`);
+        render(out, status, body);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 5.5 매장 필터 ───────────────────────────────────────────────────────────
+document.getElementById("btn-map-filter").addEventListener("click", async () => {
+    const out      = document.getElementById("out-map-filter");
+    const category = document.getElementById("map-filter-category").value;
+    const pet      = document.getElementById("map-filter-pet").value;
+    const params   = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (pet)      params.set("is_pet_allowed", pet);
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const qs = params.toString();
+    try {
+        const { status, body } = await callApi(`/api/v1/maps/stores/filter${qs ? "?" + qs : ""}`);
+        render(out, status, body);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 5.3 매장 상세 ───────────────────────────────────────────────────────────
+document.getElementById("btn-map-detail").addEventListener("click", async () => {
+    const out = document.getElementById("out-map-detail");
+    const id  = document.getElementById("map-detail-id").value;
+    if (!id) { render(out, 0, "store_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const { status, body } = await callApi(`/api/v1/maps/stores/${id}`);
+        render(out, status, body);
+    } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
+});
+
+// ─── 5.9 매장 리뷰 조회 ──────────────────────────────────────────────────────
+document.getElementById("btn-map-reviews").addEventListener("click", async () => {
+    const out = document.getElementById("out-map-reviews");
+    const id  = document.getElementById("map-reviews-id").value;
+    if (!id) { render(out, 0, "store_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    try {
+        const { status, body } = await callApi(`/api/v1/maps/stores/${id}/reviews`);
         render(out, status, body);
     } catch (err) { out.textContent = `네트워크 에러: ${err.message}`; out.dataset.status = "error"; }
 });
