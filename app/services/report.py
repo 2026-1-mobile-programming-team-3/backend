@@ -9,7 +9,6 @@ from app.schemas.report import ReportCreatedResponse, ReportCreateRequest
 
 async def create_report(
     db: AsyncSession,
-    *,
     reporter_id: int,
     data: ReportCreateRequest,
 ) -> ReportCreatedResponse:
