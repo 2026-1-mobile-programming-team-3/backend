@@ -43,6 +43,27 @@ async def get_by_id(db: AsyncSession, block_id: int) -> UserBlock | None:
     return result.scalar_one_or_none()
 
 
+async def list_blocked_ids(db: AsyncSession, user_id: int) -> list[int]:
+    """user_id가 차단한 사용자 id 목록. 가시성 쿼리에서 NOT IN 필터로 사용."""
+    stmt = select(UserBlock.blocked_id).where(UserBlock.blocker_id == user_id)
+    result = await db.execute(stmt)
+    return [row[0] for row in result.all()]
+
+
+async def list_blocker_ids(db: AsyncSession, user_id: int) -> list[int]:
+    """user_id를 차단한 사용자 id 목록. 양방향 가시성 차단 시 사용."""
+    stmt = select(UserBlock.blocker_id).where(UserBlock.blocked_id == user_id)
+    result = await db.execute(stmt)
+    return [row[0] for row in result.all()]
+
+
+async def list_two_way_excluded_ids(db: AsyncSession, user_id: int) -> list[int]:
+    """user_id 기준 양방향(차단함 ∪ 차단당함) 가시성 제외 id 합집합."""
+    blocked = await list_blocked_ids(db, user_id)
+    blockers = await list_blocker_ids(db, user_id)
+    return list({*blocked, *blockers})
+
+
 async def delete(db: AsyncSession, block: UserBlock) -> None:
     """commit은 호출자 책임."""
     await db.delete(block)

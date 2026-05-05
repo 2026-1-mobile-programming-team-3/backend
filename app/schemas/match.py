@@ -140,6 +140,8 @@ class ApplicationListItem(BaseModel):
 class ApplicationListResponse(BaseModel):
     items: list[ApplicationListItem]
     total: int
+    page: int
+    size: int
 
 
 # ─── 3.8 PATCH /matches/{match_id}/applications/{application_id} ─────────────

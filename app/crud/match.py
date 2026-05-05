@@ -64,12 +64,17 @@ async def create_match(
     return match
 
 
-async def get_match_active(db: AsyncSession, match_id: int) -> Match | None:
-    """deleted_at IS NULL 인 매칭만 반환. 상태 무관."""
+async def get_match_active(
+    db: AsyncSession, match_id: int, *, for_update: bool = False
+) -> Match | None:
+    """deleted_at IS NULL 인 매칭만 반환. 상태 무관.
+    for_update=True 시 SELECT ... FOR UPDATE 락을 걸어 동시 신청 처리 레이스를 차단."""
     stmt = select(Match).where(
         Match.id == match_id,
         Match.deleted_at.is_(None),
     )
+    if for_update:
+        stmt = stmt.with_for_update()
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -218,20 +223,42 @@ async def create_application(
 
 
 async def list_applications_with_applicants(
-    db: AsyncSession, match_id: int
-) -> list[tuple[MatchApplication, str | None]]:
-    """(application, applicant_nickname) created_at ASC."""
+    db: AsyncSession,
+    match_id: int,
+    *,
+    page: int,
+    size: int,
+    exclude_applicant_ids: list[int] | None = None,
+) -> tuple[list[tuple[MatchApplication, str | None]], int]:
+    """(application, applicant_nickname) created_at ASC + 총 개수.
+    exclude_applicant_ids: 차단/제외 대상. NOT IN 필터로 적용."""
+    base_filters = [MatchApplication.match_id == match_id]
+    if exclude_applicant_ids:
+        base_filters.append(
+            MatchApplication.applicant_id.notin_(exclude_applicant_ids)
+        )
+
+    count_stmt = (
+        select(func.count())
+        .select_from(MatchApplication)
+        .where(*base_filters)
+    )
+    total = int((await db.execute(count_stmt)).scalar_one())
+
     stmt = (
         select(MatchApplication, User.nickname)
         .outerjoin(
             User,
             (User.id == MatchApplication.applicant_id) & (User.deleted_at.is_(None)),
         )
-        .where(MatchApplication.match_id == match_id)
+        .where(*base_filters)
         .order_by(MatchApplication.created_at.asc())
+        .offset((page - 1) * size)
+        .limit(size)
     )
     result = await db.execute(stmt)
-    return [(row[0], row[1]) for row in result.all()]
+    rows = [(row[0], row[1]) for row in result.all()]
+    return rows, total
 
 
 async def count_applications(db: AsyncSession, match_id: int) -> int:
@@ -242,9 +269,11 @@ async def count_applications(db: AsyncSession, match_id: int) -> int:
 
 
 async def get_application(
-    db: AsyncSession, application_id: int
+    db: AsyncSession, application_id: int, *, for_update: bool = False
 ) -> MatchApplication | None:
     stmt = select(MatchApplication).where(MatchApplication.id == application_id)
+    if for_update:
+        stmt = stmt.with_for_update()
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 

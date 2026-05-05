@@ -115,11 +115,13 @@ async def create_application(
 )
 async def list_applications(
     match_id: int,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return await match_service.list_applications(
-        db, current_user=current_user, match_id=match_id
+        db, current_user=current_user, match_id=match_id, page=page, size=size
     )
 
 

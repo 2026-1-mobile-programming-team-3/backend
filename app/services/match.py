@@ -230,6 +230,8 @@ async def list_applications(
     *,
     current_user: User,
     match_id: int,
+    page: int,
+    size: int,
 ) -> ApplicationListResponse:
     match = await match_crud.get_match_active(db, match_id)
     if match is None:
@@ -242,7 +244,13 @@ async def list_applications(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="작성자만 신청자 목록을 볼 수 있습니다.",
         )
-    rows = await match_crud.list_applications_with_applicants(db, match_id)
+    # 작성자가 차단한 사용자의 신청은 노출하지 않는다 (가시성 정책 일관).
+    from app.crud import block as block_crud  # lazy import
+    blocked_ids = await block_crud.list_blocked_ids(db, current_user.id)
+
+    rows, total = await match_crud.list_applications_with_applicants(
+        db, match_id, page=page, size=size, exclude_applicant_ids=blocked_ids or None
+    )
     items = [
         ApplicationListItem(
             application_id=app.id,
@@ -256,7 +264,7 @@ async def list_applications(
         )
         for app, nickname in rows
     ]
-    return ApplicationListResponse(items=items, total=len(items))
+    return ApplicationListResponse(items=items, total=total, page=page, size=size)
 
 
 # ─── 3.8 PATCH /matches/{match_id}/applications/{application_id} ─────────────
@@ -270,7 +278,8 @@ async def respond_application(
     application_id: int,
     data: ApplicationActionRequest,
 ) -> ApplicationActionResponse:
-    match = await match_crud.get_match_active(db, match_id)
+    # 동시 ACCEPT 레이스 차단: 매칭과 대상 신청을 트랜잭션 내에서 row-lock.
+    match = await match_crud.get_match_active(db, match_id, for_update=True)
     if match is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -282,7 +291,7 @@ async def respond_application(
             detail="작성자만 신청을 처리할 수 있습니다.",
         )
 
-    application = await match_crud.get_application(db, application_id)
+    application = await match_crud.get_application(db, application_id, for_update=True)
     if application is None or application.match_id != match_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
