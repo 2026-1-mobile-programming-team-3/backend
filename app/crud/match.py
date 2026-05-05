@@ -13,19 +13,26 @@ from app.models.user import Pet, User
 
 async def list_waiting_matches(
     db: AsyncSession,
+    *,
+    exclude_author_ids: list[int] | None = None,
 ) -> list[tuple[Match, float, float]]:
-    """status=WAITING AND deleted_at IS NULL 매칭의 (Match, lat, lng) 200건. created_at DESC."""
+    """status=WAITING AND deleted_at IS NULL 매칭의 (Match, lat, lng) 200건. created_at DESC.
+    exclude_author_ids: 양방향 차단 사용자의 글 숨김 시 사용."""
     location_geom = func.cast(Match.location, Geometry)
+    filters = [
+        Match.status == MatchStatus.WAITING,
+        Match.deleted_at.is_(None),
+    ]
+    if exclude_author_ids:
+        filters.append(Match.author_id.notin_(exclude_author_ids))
+
     stmt = (
         select(
             Match,
             func.ST_Y(location_geom).label("lat"),
             func.ST_X(location_geom).label("lng"),
         )
-        .where(
-            Match.status == MatchStatus.WAITING,
-            Match.deleted_at.is_(None),
-        )
+        .where(*filters)
         .order_by(Match.created_at.desc())
         .limit(200)
     )
@@ -112,9 +119,11 @@ async def list_matches(
     to_date: date_type | None,
     page: int,
     size: int,
+    exclude_author_ids: list[int] | None = None,
 ) -> tuple[list[tuple[Match, float, float, str | None]], int]:
     """필터 적용한 (Match, lat, lng, author_nickname) 페이지 + 총 개수.
-    deleted_at IS NULL 매칭만. created_at DESC."""
+    deleted_at IS NULL 매칭만. created_at DESC.
+    exclude_author_ids: 양방향 차단 사용자의 글 숨김."""
     location_geom = func.cast(Match.location, Geometry)
 
     base_filters = [Match.deleted_at.is_(None)]
@@ -126,6 +135,8 @@ async def list_matches(
         base_filters.append(Match.desired_date >= from_date)
     if to_date is not None:
         base_filters.append(Match.desired_date <= to_date)
+    if exclude_author_ids:
+        base_filters.append(Match.author_id.notin_(exclude_author_ids))
 
     count_stmt = select(func.count()).select_from(Match).where(*base_filters)
     total = (await db.execute(count_stmt)).scalar_one()

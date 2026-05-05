@@ -29,3 +29,5 @@ class BlockListItem(BaseModel):
 class BlockListResponse(BaseModel):
     items: list[BlockListItem]
     total: int
+    page: int
+    size: int

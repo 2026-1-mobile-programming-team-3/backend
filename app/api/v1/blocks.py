@@ -33,10 +33,14 @@ async def create_block(
 
 @router.get("", response_model=BlockListResponse)
 async def list_blocks(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return await block_service.list_blocks(db, user_id=current_user.id)
+    return await block_service.list_blocks(
+        db, user_id=current_user.id, page=page, size=size
+    )
 
 
 @router.delete("/{block_id}", status_code=status.HTTP_204_NO_CONTENT)

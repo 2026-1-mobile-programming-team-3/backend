@@ -53,8 +53,10 @@ async def list_blocks(
     db: AsyncSession,
     *,
     user_id: int,
+    page: int,
+    size: int,
 ) -> BlockListResponse:
-    rows = await block_crud.list_by_user(db, user_id)
+    rows, total = await block_crud.list_by_user(db, user_id, page=page, size=size)
     items = [
         BlockListItem(
             block_id=block.id,
@@ -64,7 +66,7 @@ async def list_blocks(
         )
         for block, nickname in rows
     ]
-    return BlockListResponse(items=items, total=len(items))
+    return BlockListResponse(items=items, total=total, page=page, size=size)
 
 
 async def delete_block(

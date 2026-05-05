@@ -71,9 +71,9 @@ async def create_store(
 @router.get("/volunteers", response_model=VolunteerLocationListResponse)
 async def list_volunteer_locations(
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_volunteer),
+    current_user: User = Depends(get_current_volunteer),
 ):
-    return await match_service.list_volunteer_locations(db)
+    return await match_service.list_volunteer_locations(db, current_user=current_user)
 
 
 @router.get("/stores/{store_id}", response_model=StoreDetail)

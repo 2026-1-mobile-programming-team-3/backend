@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.crud import block as block_crud
 from app.crud import match as match_crud
 from app.crud import pet as pet_crud
 from app.models.enums import ApplicationStatus, MatchStatus
@@ -33,8 +34,13 @@ from app.schemas.match import (
 _DELETED_USER_NICKNAME = "(탈퇴한 사용자)"
 
 
-async def list_volunteer_locations(db: AsyncSession) -> VolunteerLocationListResponse:
-    rows = await match_crud.list_waiting_matches(db)
+async def list_volunteer_locations(
+    db: AsyncSession, *, current_user: User
+) -> VolunteerLocationListResponse:
+    excluded = await block_crud.list_two_way_excluded_ids(db, current_user.id)
+    rows = await match_crud.list_waiting_matches(
+        db, exclude_author_ids=excluded or None
+    )
     return VolunteerLocationListResponse(
         volunteer_requests=[
             VolunteerLocationItem(
@@ -95,6 +101,7 @@ async def create_match(
 async def list_matches(
     db: AsyncSession,
     *,
+    current_user: User,
     status_filter: MatchStatus | None,
     region: str | None,
     from_date: date_type | None,
@@ -102,6 +109,7 @@ async def list_matches(
     page: int,
     size: int,
 ) -> MatchListResponse:
+    excluded = await block_crud.list_two_way_excluded_ids(db, current_user.id)
     rows, total = await match_crud.list_matches(
         db,
         status=status_filter,
@@ -110,6 +118,7 @@ async def list_matches(
         to_date=to_date,
         page=page,
         size=size,
+        exclude_author_ids=excluded or None,
     )
     items = [
         MatchListItem(
@@ -245,7 +254,6 @@ async def list_applications(
             detail="작성자만 신청자 목록을 볼 수 있습니다.",
         )
     # 작성자가 차단한 사용자의 신청은 노출하지 않는다 (가시성 정책 일관).
-    from app.crud import block as block_crud  # lazy import
     blocked_ids = await block_crud.list_blocked_ids(db, current_user.id)
 
     rows, total = await match_crud.list_applications_with_applicants(

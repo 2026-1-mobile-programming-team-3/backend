@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.block import UserBlock
@@ -22,8 +22,18 @@ async def create(
 async def list_by_user(
     db: AsyncSession,
     user_id: int,
-) -> list[tuple[UserBlock, str | None]]:
-    """(block, blocked_user_nickname) created_at DESC."""
+    *,
+    page: int,
+    size: int,
+) -> tuple[list[tuple[UserBlock, str | None]], int]:
+    """(block, blocked_user_nickname) created_at DESC + 총 개수."""
+    count_stmt = (
+        select(func.count())
+        .select_from(UserBlock)
+        .where(UserBlock.blocker_id == user_id)
+    )
+    total = int((await db.execute(count_stmt)).scalar_one())
+
     stmt = (
         select(UserBlock, User.nickname)
         .outerjoin(
@@ -32,9 +42,12 @@ async def list_by_user(
         )
         .where(UserBlock.blocker_id == user_id)
         .order_by(UserBlock.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
     )
     result = await db.execute(stmt)
-    return [(row[0], row[1]) for row in result.all()]
+    rows = [(row[0], row[1]) for row in result.all()]
+    return rows, total
 
 
 async def get_by_id(db: AsyncSession, block_id: int) -> UserBlock | None:

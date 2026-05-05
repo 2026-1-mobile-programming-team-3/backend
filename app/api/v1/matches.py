@@ -48,10 +48,11 @@ async def list_matches(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     return await match_service.list_matches(
         db,
+        current_user=current_user,
         status_filter=status_filter,
         region=region,
         from_date=from_date,
