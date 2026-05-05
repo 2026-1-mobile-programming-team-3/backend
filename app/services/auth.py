@@ -7,9 +7,10 @@ from app.core.config import settings
 from app.core.security import (
     create_access_token,
     generate_refresh_token,
-    hash_password,
+    hash_password_async,
     hash_refresh_token,
-    verify_password,
+    verify_dummy_password_async,
+    verify_password_async,
 )
 from app.crud import refresh_token as crud_rt
 from app.crud import user as crud_user
@@ -24,6 +25,10 @@ from app.schemas.auth import (
 from app.schemas.user import AccountDeleteRequest, PasswordChangeRequest, UserUpdateRequest
 
 
+def _refresh_expires_at() -> datetime:
+    return datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+
+
 async def signup(db: AsyncSession, data: SignupRequest) -> User:
     existing = await crud_user.get_by_email(db, data.email)
     if existing:
@@ -34,7 +39,7 @@ async def signup(db: AsyncSession, data: SignupRequest) -> User:
     return await crud_user.create(
         db,
         email=data.email,
-        password_hash=hash_password(data.password),
+        password_hash=await hash_password_async(data.password),
         nickname=data.nickname,
         phone=data.phone,
     )
@@ -42,7 +47,14 @@ async def signup(db: AsyncSession, data: SignupRequest) -> User:
 
 async def login(db: AsyncSession, email: str, password: str) -> LoginResponse:
     user = await crud_user.get_by_email(db, email)
-    if user is None or not verify_password(password, user.password_hash):
+    # 사용자 부재 분기에서도 verify를 수행해 타이밍 누설 차단
+    if user is None:
+        await verify_dummy_password_async(password)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="이메일 또는 비밀번호가 올바르지 않습니다.",
+        )
+    if not await verify_password_async(password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="이메일 또는 비밀번호가 올바르지 않습니다.",
@@ -50,12 +62,11 @@ async def login(db: AsyncSession, email: str, password: str) -> LoginResponse:
 
     access_token = create_access_token(user.id)
     raw_rt = generate_refresh_token()
-    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
     await crud_rt.create(
         db,
         user_id=user.id,
         token_hash=hash_refresh_token(raw_rt),
-        expires_at=expires_at,
+        expires_at=_refresh_expires_at(),
     )
 
     return LoginResponse(
@@ -73,9 +84,19 @@ async def refresh(db: AsyncSession, data: TokenRefreshRequest) -> TokenRefreshRe
             detail="유효하지 않거나 만료된 refresh token입니다.",
         )
 
+    # refresh token 회전: 기존 폐기 + 신규 발급. 탈취된 토큰을 7일간 유효한 채 두지 않는다.
+    new_raw_rt = generate_refresh_token()
+    await crud_rt.rotate(
+        db,
+        old=token_record,
+        new_token_hash=hash_refresh_token(new_raw_rt),
+        new_expires_at=_refresh_expires_at(),
+    )
+
     access_token = create_access_token(token_record.user_id)
     return TokenRefreshResponse(
         access_token=access_token,
+        refresh_token=new_raw_rt,
         expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
 
@@ -100,18 +121,21 @@ async def update_profile(db: AsyncSession, user: User, data: UserUpdateRequest) 
 
 
 async def change_password(db: AsyncSession, user: User, data: PasswordChangeRequest) -> None:
-    if not verify_password(data.current_password, user.password_hash):
+    if not await verify_password_async(data.current_password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="현재 비밀번호가 올바르지 않습니다.",
         )
-    await crud_user.update(db, user, password_hash=hash_password(data.new_password))
+    await crud_user.update(db, user, password_hash=await hash_password_async(data.new_password))
+    # 비밀번호 변경 시 모든 활성 세션 강제 로그아웃 — 비밀번호가 노출됐을 가능성을 차단.
+    await crud_rt.revoke_all_for_user(db, user.id)
 
 
 async def delete_account(db: AsyncSession, user: User, data: AccountDeleteRequest) -> None:
-    if not verify_password(data.password, user.password_hash):
+    if not await verify_password_async(data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="비밀번호가 올바르지 않습니다.",
         )
     await crud_user.soft_delete(db, user)
+    await crud_rt.revoke_all_for_user(db, user.id)
