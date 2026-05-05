@@ -22,7 +22,7 @@ async def get_approved_by_id(db: AsyncSession, store_id: int) -> Store | None:
 
 
 async def search_approved(db: AsyncSession, keyword: str) -> list[Store]:
-    """name ILIKE 또는 address ILIKE 매칭. 결과 50개 cap."""
+    """name ILIKE 또는 address ILIKE 매칭. 검색은 텍스트 결과 리스트라 50개로 캡 (가독성)."""
     pattern = f"%{keyword}%"
     stmt = (
         select(Store)
@@ -46,7 +46,7 @@ async def filter_approved(
     category: StoreCategory | None,
     is_pet_allowed: bool | None,
 ) -> list[tuple[Store, float, float]]:
-    """좌표 포함 (Store, lat, lng) 튜플 리스트. 결과 200개 cap."""
+    """좌표 포함 (Store, lat, lng) 튜플 리스트. 지도 마커 표시용이라 200개로 캡 (검색 50과 의도적 차등)."""
     location_geom = func.cast(Store.location, Geometry)
     stmt = select(
         Store,

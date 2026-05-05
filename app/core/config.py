@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,9 +47,17 @@ class Settings(BaseSettings):
     def IS_PRODUCTION(self) -> bool:
         return self.APP_ENV.lower() in ("production", "prod")
 
-    def validate_news_cache_ttl(self) -> None:
+    @model_validator(mode="after")
+    def _validate_runtime_invariants(self) -> "Settings":
         if self.NEWS_CACHE_TTL <= 0:
-            raise ValueError("NEWS_CACHE_TTL은 0보다 커야 합니다.")
+            raise ValueError("NEWS_CACHE_TTL은 0보다 커야 합니다 (초 단위).")
+        if self.JWT_ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
+            raise ValueError("JWT_ACCESS_TOKEN_EXPIRE_MINUTES는 0보다 커야 합니다.")
+        if self.JWT_REFRESH_TOKEN_EXPIRE_DAYS <= 0:
+            raise ValueError("JWT_REFRESH_TOKEN_EXPIRE_DAYS는 0보다 커야 합니다.")
+        if self.ADMIN_LOGIN_MAX_ATTEMPTS <= 0:
+            raise ValueError("ADMIN_LOGIN_MAX_ATTEMPTS는 1 이상이어야 합니다.")
+        return self
 
     @property
     def DATABASE_URL(self) -> str:
