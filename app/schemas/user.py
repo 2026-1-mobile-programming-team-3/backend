@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
-from app.core.security import validate_password_strength
+from app.core.security import validate_password_strength, validate_phone
 from app.models.enums import PetSpecies, UserRole
 
 
@@ -57,6 +57,11 @@ class UserUpdateRequest(BaseModel):
             raise ValueError("닉네임은 2자 이상 20자 이하여야 합니다.")
         return v
 
+    @field_validator("phone")
+    @classmethod
+    def _phone(cls, v: str | None) -> str | None:
+        return validate_phone(v)
+
 
 class PasswordChangeRequest(BaseModel):
     current_password: str
@@ -70,11 +75,11 @@ class PasswordChangeRequest(BaseModel):
 
 class AccountDeleteRequest(BaseModel):
     password: str
-    reason: str | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class VolunteerRequestCreate(BaseModel):
-    message: str
+    message: str = Field(min_length=1, max_length=2000)
 
 
 class VolunteerRequestResponse(BaseModel):

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.core.security import validate_password_strength
+from app.core.security import validate_password_strength, validate_phone
 
 
 class SignupRequest(BaseModel):
@@ -21,6 +21,11 @@ class SignupRequest(BaseModel):
         if not (2 <= len(v) <= 20):
             raise ValueError("닉네임은 2자 이상 20자 이하여야 합니다.")
         return v
+
+    @field_validator("phone")
+    @classmethod
+    def _phone(cls, v: str | None) -> str | None:
+        return validate_phone(v)
 
 
 class LoginRequest(BaseModel):

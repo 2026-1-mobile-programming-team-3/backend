@@ -1,8 +1,17 @@
+import math
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models.enums import StoreCategory, StoreStatus
+
+
+def _validate_finite(v: float | None) -> float | None:
+    if v is None:
+        return v
+    if not math.isfinite(v):
+        raise ValueError("좌표는 유한한 수여야 합니다 (NaN/Inf 불가).")
+    return v
 
 
 class StoreSummary(BaseModel):
@@ -94,6 +103,11 @@ class StoreCreateRequest(BaseModel):
     operating_hours: str | None = Field(default=None, max_length=100)
     photo_urls: list[str] = Field(default_factory=list)
 
+    @field_validator("latitude", "longitude")
+    @classmethod
+    def _finite(cls, v: float) -> float:
+        return _validate_finite(v)  # type: ignore[return-value]
+
 
 class StoreCreateResponse(BaseModel):
     store_id: int
@@ -112,6 +126,11 @@ class StoreUpdateRequest(BaseModel):
     operating_hours: str | None = Field(default=None, max_length=100)
     photo_urls: list[str] | None = None
 
+    @field_validator("latitude", "longitude")
+    @classmethod
+    def _finite(cls, v: float | None) -> float | None:
+        return _validate_finite(v)
+
     @model_validator(mode="after")
     def validate_coords_paired(self):
         """lat/lng는 둘 다 있거나 둘 다 없어야 함 — 한쪽만 변경은 의미 없음."""
@@ -123,7 +142,7 @@ class StoreUpdateRequest(BaseModel):
 class StoreReviewCreateRequest(BaseModel):
     rating: int = Field(ge=1, le=5)
     is_pet_allowed: bool
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=2000)
 
 
 class StoreReviewCreatedResponse(BaseModel):

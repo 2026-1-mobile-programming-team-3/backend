@@ -28,7 +28,7 @@ router = APIRouter(prefix="/maps", tags=["Maps"])
 # FastAPI가 path 충돌을 일으키지 않는다.
 @router.get("/stores/search", response_model=StoreSearchResponse)
 async def search_stores(
-    keyword: str = Query(..., min_length=1),
+    keyword: str = Query(..., min_length=1, max_length=100),
     db: AsyncSession = Depends(get_db),
 ):
     return await store_service.search_stores(db, keyword)
