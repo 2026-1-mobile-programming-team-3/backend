@@ -49,8 +49,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# SessionMiddleware must be registered before Admin is mounted
-app.add_middleware(SessionMiddleware, secret_key=settings.JWT_SECRET_KEY)
+# SessionMiddleware must be registered before Admin is mounted.
+# JWT 키와 분리된 ADMIN_SESSION_KEY 사용. https_only는 운영 환경에서만 켠다 (로컬 HTTP 개발 차단 방지).
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.ADMIN_SESSION_KEY,
+    same_site="lax",
+    https_only=settings.IS_PRODUCTION,
+    max_age=60 * 60 * 8,  # 8시간
+)
 
 app.mount(
     "/static",
@@ -62,7 +69,7 @@ app.include_router(api_router, prefix=API_V1_PREFIX)
 app.include_router(web_router)
 
 # ─── SQLAdmin ────────────────────────────────────────────────────────────────
-authentication_backend = AdminAuth(secret_key=settings.JWT_SECRET_KEY)
+authentication_backend = AdminAuth(secret_key=settings.ADMIN_SESSION_KEY)
 admin = Admin(app, engine, authentication_backend=authentication_backend, title="시흥가개 관리자")
 
 admin.add_view(UserAdmin)
