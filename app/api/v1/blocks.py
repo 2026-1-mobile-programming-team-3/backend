@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_db
+from app.core.rate_limit import limiter
 from app.models.user import User
 from app.schemas.block import (
     BlockCreatedResponse,
@@ -18,7 +19,9 @@ router = APIRouter(prefix="/users/me/blocks", tags=["blocks"])
     response_model=BlockCreatedResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("30/hour")
 async def create_block(
+    request: Request,
     data: BlockCreateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

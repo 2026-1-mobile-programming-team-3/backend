@@ -4,10 +4,14 @@ from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqladmin import Admin
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.admin.auth import AdminAuth
+from app.core.rate_limit import limiter
 from app.admin.views import (
     CalendarEventAdmin,
     ChatMessageAdmin,
@@ -40,6 +44,11 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url=f"{API_V1_PREFIX}/openapi.json",
 )
+
+# slowapi 등록 — 인증/신고/차단 엔드포인트에 데코레이터로 개별 제한 적용
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
