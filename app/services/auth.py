@@ -42,6 +42,8 @@ async def signup(db: AsyncSession, data: SignupRequest) -> User:
         password_hash=await hash_password_async(data.password),
         nickname=data.nickname,
         phone=data.phone,
+        region_si=data.region_si,
+        region_dong=data.region_dong,
     )
 
 
@@ -112,9 +114,12 @@ async def logout(db: AsyncSession, data: LogoutRequest) -> None:
 
 
 async def update_profile(db: AsyncSession, user: User, data: UserUpdateRequest) -> User:
-    # exclude_unset: 클라이언트가 보내지 않은 필드는 제외
-    # None 필터: null로 보낸 필드도 건너뜀 (nullable 컬럼 초기화는 별도 엔드포인트에서)
-    fields = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None}
+    # exclude_unset: 클라이언트가 보내지 않은 필드는 제외.
+    # region_si/region_dong은 명시적 null 전송을 "미설정으로 초기화"로 받는다 (api-spec §1.6).
+    # 그 외 필드(nickname/phone/profile_image_url)는 null로 비우는 별도 의미가 정의되지 않아 None 무시.
+    clearable = {"region_si", "region_dong"}
+    raw = data.model_dump(exclude_unset=True)
+    fields = {k: v for k, v in raw.items() if v is not None or k in clearable}
     if not fields:
         return user
     return await crud_user.update(db, user, **fields)

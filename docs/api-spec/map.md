@@ -41,6 +41,9 @@ PostGIS `ST_DWithin` 기반 반경 검색. 응답은 거리 오름차순 정렬,
       "longitude": 126.7281,
       "category": "CAFE",
       "is_pet_allowed": true,
+      "thumbnail_url": "https://storage.example.com/stores/101.jpg",
+      "rating_avg": 4.5,
+      "is_favorited": false,
       "distance_m": 320.5
     }
   ]
@@ -48,6 +51,9 @@ PostGIS `ST_DWithin` 기반 반경 검색. 응답은 거리 오름차순 정렬,
 ```
 
 > `distance_m`: 요청 좌표에서 매장까지의 거리(미터, 소수점 1자리). `status=APPROVED`이고 미삭제 매장만 노출.
+> `thumbnail_url`: 매장 대표 사진(`photo_urls` 배열 첫 번째). 없으면 `null`.
+> `rating_avg`: 매장 리뷰 평점 평균(소수점 1자리). 리뷰 0건이면 `null`.
+> `is_favorited`: 인증된 요청에 한해 본인 즐겨찾기 여부. 비인증 호출 시 항상 `false`.
 
 **Errors**
 
@@ -104,9 +110,12 @@ PostGIS `ST_DWithin` 기반 반경 검색. 응답은 거리 오름차순 정렬,
   "photo_urls": ["url1.jpg", "url2.jpg"],
   "is_pet_allowed": true,
   "rating_avg": 4.5,
-  "review_pet_allowed_rate": 0.92
+  "review_pet_allowed_rate": 0.92,
+  "is_favorited": false
 }
 ```
+
+> `is_favorited`: 인증된 요청에 한해 본인 즐겨찾기 여부. 비인증 호출 시 항상 `false`.
 
 **Errors**
 
@@ -150,7 +159,7 @@ PostGIS `ST_DWithin` 기반 반경 검색. 응답은 거리 오름차순 정렬,
 
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
-| category | string | N | `CAFE` / `RESTAURANT` / `PARK` |
+| category | string | N | `CAFE` / `RESTAURANT` / `PARK` / `VET` / `GROOMING` |
 | is_pet_allowed | boolean | N | 반려동물 출입 가능 여부 (공식 정보 기준) |
 
 **Response — 200 OK**
@@ -184,7 +193,7 @@ PostGIS `ST_DWithin` 기반 반경 검색. 응답은 거리 오름차순 정렬,
 | --- | --- | --- | --- |
 | name | string | Y | 매장 이름 (1~100자) |
 | address | string | Y | 매장 주소 (1~255자) |
-| category | string | Y | `CAFE` / `RESTAURANT` / `PARK` |
+| category | string | Y | `CAFE` / `RESTAURANT` / `PARK` / `VET` / `GROOMING` |
 | is_pet_allowed | boolean | Y | 반려동물 출입 가능 여부 |
 | latitude | float | Y | ⚠️ 임시. 위도 (-90 ~ 90, 유한값), 향후 자동 지오코딩으로 교체 |
 | longitude | float | Y | ⚠️ 임시. 경도 (-180 ~ 180, 유한값), 향후 자동 지오코딩으로 교체 |

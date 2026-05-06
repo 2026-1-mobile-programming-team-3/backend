@@ -44,6 +44,7 @@ async def get_store_detail(db: AsyncSession, store_id: int) -> StoreDetail:
         is_pet_allowed=store.is_pet_allowed,
         rating_avg=float(store.rating_avg),
         review_pet_allowed_rate=pet_rate,
+        is_favorited=False,
     )
 
 
@@ -99,6 +100,9 @@ async def nearby_stores(
                 longitude=row_lng,
                 category=s.category,
                 is_pet_allowed=s.is_pet_allowed,
+                thumbnail_url=(s.photo_urls[0] if s.photo_urls else None),
+                rating_avg=(round(float(s.rating_avg), 1) if s.rating_count > 0 else None),
+                is_favorited=False,
                 distance_m=round(distance_m, 1),
             )
             for s, row_lat, row_lng, distance_m in rows

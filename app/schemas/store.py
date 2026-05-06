@@ -49,6 +49,7 @@ class StoreDetail(BaseModel):
     is_pet_allowed: bool
     rating_avg: float
     review_pet_allowed_rate: float
+    is_favorited: bool = False
 
 
 class StoreFilterResponse(BaseModel):
@@ -85,6 +86,9 @@ class StoreNearbyItem(BaseModel):
     longitude: float
     category: StoreCategory
     is_pet_allowed: bool
+    thumbnail_url: str | None = None
+    rating_avg: float | None = None
+    is_favorited: bool = False
     distance_m: float
 
 

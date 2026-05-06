@@ -24,6 +24,8 @@ class User(Base):
         server_default=sa.text("'USER'"),
     )
     profile_image_url: Mapped[Optional[str]] = mapped_column(sa.Text)
+    region_si: Mapped[Optional[str]] = mapped_column(sa.String(50))
+    region_dong: Mapped[Optional[str]] = mapped_column(sa.String(50))
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
     )

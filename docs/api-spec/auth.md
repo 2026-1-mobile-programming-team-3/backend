@@ -132,13 +132,17 @@ https://{host}/api/v1
 | password | string | Y | 비밀번호 (8자 이상, 영문+숫자+특수문자) |
 | nickname | string | Y | 닉네임 (2~20자) |
 | phone | string | N | 연락처 |
+| region_si | string | N | 거주 시 (예: `"시흥시"`). 미설정 시 `null` |
+| region_dong | string | N | 거주 동 (예: `"정왕동"`). 미설정 시 `null` |
 
 ```json
 {
   "email": "user@example.com",
   "password": "securePassword123!",
   "nickname": "댕댕이주인",
-  "phone": "010-1234-5678"
+  "phone": "010-1234-5678",
+  "region_si": "시흥시",
+  "region_dong": "정왕동"
 }
 ```
 
@@ -148,8 +152,13 @@ https://{host}/api/v1
   "id": 1,
   "email": "user@example.com",
   "nickname": "댕댕이주인",
+  "phone": "010-1234-5678",
   "role": "USER",
-  "created_at": "2026-04-15T12:00:00Z"
+  "profile_image_url": null,
+  "region_si": "시흥시",
+  "region_dong": "정왕동",
+  "created_at": "2026-04-15T12:00:00Z",
+  "updated_at": "2026-04-15T12:00:00Z"
 }
 ```
 
@@ -259,6 +268,8 @@ https://{host}/api/v1
   "nickname": "댕댕이주인",
   "phone": "010-1234-5678",
   "role": "USER",
+  "region_si": "시흥시",
+  "region_dong": "정왕동",
   "profile_image_url": null,
   "pets": [
     {
@@ -292,6 +303,10 @@ https://{host}/api/v1
 | nickname | string | N | 변경할 닉네임 |
 | phone | string | N | 변경할 연락처 |
 | profile_image_url | string | N | 프로필 이미지 URL |
+| region_si | string | N | 거주 시. `null` 전송 시 미설정으로 초기화 |
+| region_dong | string | N | 거주 동. `null` 전송 시 미설정으로 초기화 |
+
+> region을 클라이언트가 GPS 역지오코딩으로 받은 결과로 갱신할 때도 본 엔드포인트 사용. 시·동 한쪽만 보내면 다른 쪽은 변경 없음 (PATCH 시맨틱).
 
 **Response — 200 OK**
 ```json
@@ -302,6 +317,9 @@ https://{host}/api/v1
   "phone": "010-9999-8888",
   "profile_image_url": "https://storage.example.com/profiles/1.jpg",
   "role": "USER",
+  "region_si": "시흥시",
+  "region_dong": "정왕동",
+  "created_at": "2026-04-15T12:00:00Z",
   "updated_at": "2026-04-15T13:00:00Z"
 }
 ```
@@ -573,7 +591,7 @@ https://{host}/api/v1
 | Notification.category | `VOLUNTEER`, `MATCH`, `REVIEW`, `NEWS`, `POLICY`, `SYSTEM` |
 | Match.status | `WAITING`, `MATCHING`, `PROGRESS`, `DONE` |
 | VolunteerRequest.status | `PENDING`, `APPROVED`, `REJECTED` |
-| Store.category | `CAFE`, `RESTAURANT`, `PARK` |
+| Store.category | `CAFE`, `RESTAURANT`, `PARK`, `VET`, `GROOMING` |
 | Store.status | `PENDING`, `APPROVED`, `REJECTED` |
 | Application.status | `PENDING`, `ACCEPTED`, `REJECTED` |
 

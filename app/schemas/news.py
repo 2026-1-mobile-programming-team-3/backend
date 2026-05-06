@@ -7,6 +7,9 @@ class NewsItem(BaseModel):
     summary: str
     published_date: str  # "YYYY-MM-DD"
     link: str
+    image_url: str | None = None
+    category: str = "POLICY"
+    publisher: str = ""
 
 
 class NewsListResponse(BaseModel):
@@ -19,6 +22,9 @@ class NewsDetail(BaseModel):
     content: str
     official_link: str
     published_date: str
+    image_url: str | None = None
+    category: str = "POLICY"
+    publisher: str = ""
 
 
 class CalendarEventOut(BaseModel):

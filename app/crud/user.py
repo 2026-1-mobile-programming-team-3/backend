@@ -25,8 +25,17 @@ async def create(
     password_hash: str,
     nickname: str,
     phone: str | None,
+    region_si: str | None = None,
+    region_dong: str | None = None,
 ) -> User:
-    user = User(email=email, password_hash=password_hash, nickname=nickname, phone=phone)
+    user = User(
+        email=email,
+        password_hash=password_hash,
+        nickname=nickname,
+        phone=phone,
+        region_si=region_si,
+        region_dong=region_dong,
+    )
     db.add(user)
     await db.commit()
     await db.refresh(user)

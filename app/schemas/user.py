@@ -25,6 +25,8 @@ class UserMeResponse(BaseModel):
     phone: str | None
     role: UserRole
     profile_image_url: str | None
+    region_si: str | None
+    region_dong: str | None
     pets: list[PetSummary] = []
     created_at: datetime
 
@@ -38,6 +40,8 @@ class UserResponse(BaseModel):
     phone: str | None
     role: UserRole
     profile_image_url: str | None
+    region_si: str | None
+    region_dong: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -46,6 +50,8 @@ class UserUpdateRequest(BaseModel):
     nickname: str | None = None
     phone: str | None = None
     profile_image_url: str | None = None
+    region_si: str | None = None
+    region_dong: str | None = None
 
     @field_validator("nickname")
     @classmethod

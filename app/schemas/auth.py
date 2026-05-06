@@ -8,6 +8,8 @@ class SignupRequest(BaseModel):
     password: str
     nickname: str
     phone: str | None = None
+    region_si: str | None = None
+    region_dong: str | None = None
 
     @field_validator("password")
     @classmethod

@@ -5,6 +5,7 @@ import json
 import re
 from datetime import date
 from email.utils import parsedate_to_datetime
+from urllib.parse import urlparse
 
 import httpx
 import redis.asyncio as aioredis
@@ -26,6 +27,24 @@ from app.schemas.news import (
 _NAVER_NEWS_URL = "https://openapi.naver.com/v1/search/news.json"
 _CACHE_KEY = "news:list"
 
+# api-spec §6.1: link 도메인 기반 매체명 매핑.
+# 화이트리스트에 없으면 도메인을 그대로 publisher로 노출한다.
+_PUBLISHER_MAP = {
+    "n.news.naver.com": "네이버 뉴스",
+    "news.naver.com": "네이버 뉴스",
+    "siheung.go.kr": "시흥시청",
+    "www.siheung.go.kr": "시흥시청",
+}
+
+# api-spec §6.1: 키워드 룰 분류. 첫 매칭 우선, 매칭 실패 시 POLICY 디폴트.
+_CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("EVENT", ("행사", "축제", "이벤트", "박람회", "마켓")),
+    ("VOLUNTEER", ("봉사", "자원봉사")),
+    ("BADGE", ("인증", "마크", "라벨")),
+    ("SUPPORT", ("지원", "보조금", "수당", "수술비", "지원금")),
+    ("POLICY", ("정책", "조례", "법", "제도", "고시", "규정")),
+]
+
 
 def _clean_html(text: str) -> str:
     """네이버 API 응답에 섞인 HTML 태그와 엔티티를 제거한다."""
@@ -41,15 +60,36 @@ def _parse_pub_date(rfc822: str) -> str:
         return ""
 
 
+def _classify_category(text: str) -> str:
+    for cat, keywords in _CATEGORY_RULES:
+        if any(kw in text for kw in keywords):
+            return cat
+    return "POLICY"
+
+
+def _extract_publisher(link: str) -> str:
+    try:
+        domain = urlparse(link).netloc
+    except Exception:
+        return ""
+    return _PUBLISHER_MAP.get(domain, domain)
+
+
 def _build_news_item(raw: dict) -> NewsItem:
     link = raw.get("link") or raw.get("originallink", "")
     news_id = hashlib.sha256(link.encode()).hexdigest()[:12]
+    title = _clean_html(raw.get("title", ""))
+    summary = _clean_html(raw.get("description", ""))
     return NewsItem(
         news_id=news_id,
-        title=_clean_html(raw.get("title", "")),
-        summary=_clean_html(raw.get("description", "")),
+        title=title,
+        summary=summary,
         published_date=_parse_pub_date(raw.get("pubDate", "")),
         link=link,
+        # image_url은 og:image 스크래핑 자리. 현재는 미구현 상태로 항상 null.
+        image_url=None,
+        category=_classify_category(f"{title} {summary}"),
+        publisher=_extract_publisher(link),
     )
 
 
@@ -132,6 +172,9 @@ async def get_news_detail(
                 content=item.summary,
                 official_link=item.link,
                 published_date=item.published_date,
+                image_url=item.image_url,
+                category=item.category,
+                publisher=item.publisher,
             )
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
