@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 내 요청</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .detail-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 12px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .back-btn i { font-size:18px; }
+    .page-title { font-size:20px; font-weight:900; letter-spacing:-0.04em; color:var(--ink); }
+    .status-tabs { display:flex; gap:0; padding:0 24px; border-bottom:1.5px solid var(--line); overflow-x:auto; scrollbar-width:none; }
+    .status-tabs::-webkit-scrollbar { display:none; }
+    .status-tab { flex-shrink:0; padding:12px 14px; font:inherit; font-size:13.5px; font-weight:700;
+      color:var(--ink-mute); background:none; border:none; cursor:pointer; white-space:nowrap; position:relative; }
+    .status-tab.active { color:var(--ink); font-weight:900; }
+    .status-tab.active::after { content:''; position:absolute; bottom:-1.5px; left:0; right:0;
+      height:2.5px; background:var(--ink); border-radius:999px; }
+    .match-list { display:flex; flex-direction:column; gap:12px; padding:16px 24px; }
+    .mc { background:var(--card); border-radius:var(--r-xl); border:1px solid var(--line);
+      box-shadow:var(--shadow-md,0 2px 12px rgba(30,18,10,0.07)); padding:16px 18px 14px;
+      display:flex; flex-direction:column; gap:10px;
+      text-decoration:none; color:inherit; position:relative; overflow:hidden;
+      transition:transform 0.22s var(--spring); }
+    .mc:active { transform:scale(0.978); }
+    .mc::before { content:''; position:absolute; left:0; top:16px; bottom:16px; width:3.5px; border-radius:0 4px 4px 0; }
+    .mc[data-s="WAITING"]::before { background:var(--raspberry); }
+    .mc[data-s="MATCHING"]::before { background:var(--accent); }
+    .mc[data-s="PROGRESS"]::before { background:var(--mint); }
+    .mc[data-s="DONE"]::before { background:var(--line-strong,#ccc); }
+    .mc-top { display:flex; align-items:center; gap:8px; }
+    .mc-badge { font-size:10.5px; font-weight:900; padding:4px 10px; border-radius:999px; flex-shrink:0; }
+    .mc-badge[data-s="WAITING"] { background:var(--raspberry-dim); color:var(--raspberry); }
+    .mc-badge[data-s="MATCHING"] { background:var(--accent-dim); color:var(--accent); }
+    .mc-badge[data-s="PROGRESS"] { background:var(--mint-dim); color:var(--mint); }
+    .mc-badge[data-s="DONE"] { background:rgba(30,18,10,0.06); color:var(--ink-mute); }
+    .mc-title { font-size:15px; font-weight:900; color:var(--ink); line-height:1.32; letter-spacing:-0.035em; }
+    .mc-meta { font-size:12px; font-weight:600; color:var(--ink-mute); display:flex; align-items:center; gap:6px; }
+    .safe-area { height:calc(40px + env(safe-area-inset-bottom,0px)); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <div class="detail-topbar">
+      <a class="back-btn" href="my.html"><i class="ph ph-arrow-left"></i></a>
+      <span class="page-title">내 요청 목록</span>
+    </div>
+    <div class="status-tabs">
+      <button class="status-tab active" data-status="">전체</button>
+      <button class="status-tab" data-status="WAITING">모집중</button>
+      <button class="status-tab" data-status="MATCHING">검토중</button>
+      <button class="status-tab" data-status="PROGRESS">진행중</button>
+      <button class="status-tab" data-status="DONE">완료</button>
+    </div>
+    <template id="tmpl-my-match">
+      <a class="mc" href="#">
+        <div class="mc-top"><span class="mc-badge">—</span></div>
+        <div class="mc-title">—</div>
+        <div class="mc-meta">
+          <i class="ph ph-calendar"></i><span data-field="desired_date">—</span>
+          <span>·</span>
+          <i class="ph ph-map-pin"></i><span data-field="address">—</span>
+        </div>
+      </a>
+    </template>
+    <div class="match-list" id="my-match-list"></div>
+    <div class="safe-area"></div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootMyMatches());</script>
+</body>
+</html>

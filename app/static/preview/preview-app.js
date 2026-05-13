@@ -1001,6 +1001,59 @@
     }
   };
 
+  // ─── Page boot: 내 요청 목록 ──────────────────────────────────────────────
+  PreviewApp.bootMyMatches = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const STATUS_LABEL = { WAITING:'모집중', MATCHING:'검토중', PROGRESS:'진행중', DONE:'완료' };
+    const tabs = document.querySelectorAll('.status-tab');
+    let currentStatus = '';
+
+    async function load(status) {
+      const qs = status ? `&status=${status}` : '';
+      try {
+        const data = await API.get(`/api/v1/users/me/matches?role=author${qs}`);
+        const listEl = document.getElementById('my-match-list');
+        const tmpl = document.getElementById('tmpl-my-match');
+        listEl.innerHTML = '';
+        (data.items || []).forEach((item) => {
+          const node = tmpl.content.cloneNode(true);
+          const a = node.querySelector('a');
+          if (a) {
+            a.href = `match-detail.html?id=${item.match_id}`;
+            a.dataset.s = item.status;
+          }
+          const badge = node.querySelector('.mc-badge');
+          if (badge) {
+            badge.textContent = STATUS_LABEL[item.status] || item.status;
+            badge.dataset.s = item.status;
+          }
+          const titleEl = node.querySelector('.mc-title');
+          if (titleEl) titleEl.textContent = item.title;
+          const dateEl = node.querySelector('[data-field="desired_date"]');
+          if (dateEl) dateEl.textContent = item.desired_date || '날짜 미정';
+          const addrEl = node.querySelector('[data-field="address"]');
+          if (addrEl) addrEl.textContent = item.address || '';
+          listEl.appendChild(node);
+        });
+      } catch (err) {
+        Toast.error(err.message);
+      }
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentStatus = tab.dataset.status || '';
+        load(currentStatus);
+      });
+    });
+
+    await load(currentStatus);
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;
