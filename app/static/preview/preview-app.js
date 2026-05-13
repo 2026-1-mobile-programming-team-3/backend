@@ -375,6 +375,41 @@
     await load(current);
   };
 
+  // ─── Page boot: 지도 (카드 리스트 fallback) ─────────────────────────────────
+  PreviewApp.bootMap = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+    // 시흥시 정왕동 기준 좌표 default
+    const lat = 37.3451, lng = 126.7322, radius = 5000;
+    async function loadNearby() {
+      try {
+        const data = await API.get(`/api/v1/maps/stores?lat=${lat}&lng=${lng}&radius=${radius}`);
+        Bind.apply(document, data);
+      } catch (err) {
+        Toast.error(`매장 로딩 실패: ${err.message}`);
+      }
+    }
+    async function loadSearch(keyword) {
+      try {
+        const data = await API.get(`/api/v1/maps/stores/search?keyword=${encodeURIComponent(keyword)}`);
+        // search 응답은 { results: [...] } → stores 키로 매핑
+        Bind.apply(document, { stores: (data.results || []).map((r) => ({ ...r, distance_m: "—" })) });
+      } catch (err) {
+        Toast.error(`검색 실패: ${err.message}`);
+      }
+    }
+    const input = document.getElementById("map-search-input");
+    if (input) {
+      let timer = null;
+      input.addEventListener("input", () => {
+        clearTimeout(timer);
+        const v = input.value.trim();
+        timer = setTimeout(() => v ? loadSearch(v) : loadNearby(), 300);
+      });
+    }
+    await loadNearby();
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;
