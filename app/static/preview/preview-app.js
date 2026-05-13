@@ -452,15 +452,17 @@
       listEl.scrollTop = listEl.scrollHeight;
     }
 
+    const seen = new Set();
     try {
       const initial = await API.get(`/api/v1/matches/${matchId}/applications/${appId}/messages?size=30`);
       // created_at DESC → 화면은 오래된→최신 → reverse
-      [...(initial.items || [])].reverse().forEach(renderMsg);
+      const items = initial.items || [];
+      items.forEach((m) => seen.add(m.id));
+      [...items].reverse().forEach(renderMsg);
     } catch (err) {
       Toast.error(`메시지 로딩 실패: ${err.message}`);
     }
 
-    const seen = new Set();
     WS.onMessage((evt) => {
       if (evt?.type === "message.created" && !seen.has(evt.id)) {
         seen.add(evt.id);
