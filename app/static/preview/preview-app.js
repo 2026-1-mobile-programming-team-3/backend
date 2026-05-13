@@ -350,8 +350,64 @@
     if (!Auth.requireLogin()) return;
     DebugPanel.mount();
     try {
-      const data = await API.get("/api/v1/home/dashboard");
-      Bind.apply(document, data);
+      const [dash, newsData] = await Promise.all([
+        API.get('/api/v1/home/dashboard'),
+        API.get('/api/v1/news'),
+      ]);
+
+      // dashboard 바인딩
+      Bind.apply(document, dash);
+
+      // 알림 dot 표시
+      const dot = document.querySelector('.tb-bell .dot');
+      if (dot) dot.hidden = !dash.unread_notification_count;
+
+      // 매칭 pill: as_author 또는 as_applicant 중 존재하는 것 사용
+      const matchSrc = dash.my_match_summary?.as_author || dash.my_match_summary?.as_applicant;
+      const pill = document.querySelector('.match-pill');
+      if (pill) {
+        if (matchSrc) {
+          pill.hidden = false;
+          pill.href = `match-detail.html?id=${matchSrc.match_id}`;
+          const pillText = pill.querySelector('.match-pill-text');
+          if (pillText) pillText.textContent = matchSrc.title;
+        } else {
+          pill.hidden = true;
+        }
+      }
+
+      // 홈 뉴스 프리뷰: 피처드 + 최대 3개 목록
+      const CAT_LABEL = { POLICY:'정책', EVENT:'행사', VOLUNTEER:'봉사', SUPPORT:'지원' };
+      const news = newsData.news || [];
+      const featEl = document.querySelector('.news-feat');
+      if (featEl && news[0]) {
+        const n = news[0];
+        featEl.href = `news-detail.html?id=${n.news_id}`;
+        const img = featEl.querySelector('.nf-img');
+        if (img) { img.src = n.image_url || ''; img.style.display = n.image_url ? '' : 'none'; }
+        const catEl = featEl.querySelector('.nf-cat');
+        if (catEl) catEl.textContent = CAT_LABEL[n.category] || n.category;
+        const titleEl = featEl.querySelector('.nf-title');
+        if (titleEl) titleEl.textContent = n.title;
+        const metaEl = featEl.querySelector('.nf-meta');
+        if (metaEl) metaEl.textContent = `${n.published_date} · ${n.publisher || ''}`;
+      }
+      const newsRows = document.querySelectorAll('.news-rows .news-row');
+      news.slice(1, 4).forEach((item, i) => {
+        const row = newsRows[i];
+        if (!row) return;
+        row.href = `news-detail.html?id=${item.news_id}`;
+        const catEl = row.querySelector('.nr-cat');
+        if (catEl) {
+          const cls = { POLICY:'policy', EVENT:'event', VOLUNTEER:'volunteer', SUPPORT:'support' };
+          catEl.className = `nr-cat ${cls[item.category] || ''}`;
+          catEl.textContent = CAT_LABEL[item.category] || item.category;
+        }
+        const titleEl = row.querySelector('.nr-title');
+        if (titleEl) titleEl.textContent = item.title;
+        const dateEl = row.querySelector('.nr-date');
+        if (dateEl) dateEl.textContent = item.published_date ? item.published_date.slice(5) : '';
+      });
     } catch (err) {
       Toast.error(`홈 로딩 실패: ${err.message}`);
     }
