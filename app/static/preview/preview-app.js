@@ -1055,6 +1055,68 @@
     await load(currentStatus);
   };
 
+  // ─── Page boot: 매장 상세 ─────────────────────────────────────────────────
+  PreviewApp.bootStoreDetail = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const params = new URLSearchParams(location.search);
+    const storeId = parseInt(params.get('id'), 10);
+    if (!storeId) { Toast.error('잘못된 접근입니다.'); return; }
+
+    try {
+      const [detail, reviews] = await Promise.all([
+        API.get(`/api/v1/maps/stores/${storeId}`),
+        API.get(`/api/v1/maps/stores/${storeId}/reviews`),
+      ]);
+      Bind.apply(document, { ...detail, avg_rating: detail.avg_rating?.toFixed(1) ?? '—' });
+
+      const favBtn = document.getElementById('btn-favorite');
+      if (favBtn) {
+        favBtn.dataset.favorited = detail.is_favorited ? '1' : '0';
+        favBtn.querySelector('i').className = detail.is_favorited ? 'ph-fill ph-heart' : 'ph ph-heart';
+        favBtn.addEventListener('click', async () => {
+          const on = favBtn.dataset.favorited === '1';
+          try {
+            if (on) { await API.delete(`/api/v1/favorites/stores/${storeId}`); }
+            else { await API.post(`/api/v1/favorites/stores/${storeId}`, {}); }
+            favBtn.dataset.favorited = on ? '0' : '1';
+            favBtn.querySelector('i').className = on ? 'ph ph-heart' : 'ph-fill ph-heart';
+          } catch (err) { Toast.error(err.message); }
+        });
+      }
+
+      const reviewList = document.getElementById('review-list');
+      const tmpl = document.getElementById('tmpl-review');
+      if (reviewList && tmpl) {
+        (reviews.items || []).forEach((r) => {
+          const node = tmpl.content.cloneNode(true);
+          node.querySelector('.rv-nick').textContent = r.nickname || '익명';
+          node.querySelector('.rv-rating').textContent = '★'.repeat(Math.max(0, Math.min(5, r.rating)));
+          node.querySelector('.rv-body').textContent = r.content;
+          reviewList.appendChild(node);
+        });
+      }
+    } catch (err) { Toast.error(err.message); }
+
+    const mapEl = document.getElementById('store-mini-map');
+    if (mapEl) mapEl.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#B8D9D9,#D4E8C4);font-size:12px;color:rgba(30,18,10,0.4);font-weight:700;">지도 준비 중</div>';
+
+    document.getElementById('review-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const rating = parseInt(document.getElementById('rv-stars').value, 10);
+      const content = document.getElementById('rv-content').value.trim();
+      if (!content || !rating) { Toast.error('별점과 리뷰 내용을 입력해 주세요.'); return; }
+      const btn = e.submitter || e.target.querySelector('[type=submit]');
+      btn.disabled = true;
+      try {
+        await API.post(`/api/v1/maps/stores/${storeId}/reviews`, { rating, content });
+        Toast.ok('리뷰가 등록되었습니다.');
+        setTimeout(() => location.reload(), 800);
+      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+    });
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;

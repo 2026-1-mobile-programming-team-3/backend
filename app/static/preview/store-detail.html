@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 매장 상세</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .detail-topbar { display:flex; align-items:center; justify-content:space-between; padding:18px 24px 12px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .back-btn i { font-size:18px; }
+    .fav-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px;
+      color:var(--ink-mute); background:none; border:none; }
+    .fav-btn[data-favorited="1"] i { color:var(--raspberry); }
+    .store-hero { margin:0 24px 16px; padding:20px; background:var(--card); border-radius:var(--r-xl);
+      border:1px solid var(--line); box-shadow:var(--shadow-md,0 2px 12px rgba(30,18,10,0.07)); }
+    .store-name { font-size:22px; font-weight:900; letter-spacing:-0.04em; color:var(--ink); }
+    .store-cat { font-size:12px; font-weight:700; color:var(--accent); margin-top:4px; }
+    .store-rating { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:13px; font-weight:700; color:var(--ink-mute); }
+    .store-rating .star { color:var(--star,#F5A623); }
+    .mini-map { margin:0 24px 16px; height:160px; border-radius:var(--r-xl); overflow:hidden; border:1px solid var(--line); }
+    .store-meta { padding:0 24px; display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+    .meta-row { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:600; color:var(--ink-soft); }
+    .meta-row i { font-size:15px; color:var(--ink-mute); }
+    .section-title { font-size:15px; font-weight:900; color:var(--ink); padding:0 24px; margin-bottom:12px; margin-top:4px; }
+    .review-item { padding:14px 24px; border-bottom:1px solid var(--line); }
+    .rv-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+    .rv-nick { font-size:13px; font-weight:800; color:var(--ink); }
+    .rv-rating { color:var(--star,#F5A623); font-size:12px; letter-spacing:1px; }
+    .rv-body { font-size:13px; font-weight:600; color:var(--ink-soft); line-height:1.6; }
+    .review-form { padding:16px 24px; display:flex; flex-direction:column; gap:10px; }
+    .form-field { width:100%; padding:12px 14px; border-radius:var(--r-lg); border:1.5px solid var(--line);
+      background:var(--card); font:inherit; font-size:14px; font-weight:600; color:var(--ink);
+      outline:none; resize:none; box-sizing:border-box; appearance:none; }
+    .form-field:focus { border-color:var(--accent); }
+    .btn-primary { width:100%; padding:14px; border-radius:var(--r-lg); background:var(--ink); color:#fff;
+      border:none; font:inherit; font-size:14px; font-weight:800; cursor:pointer; }
+    .btn-primary:disabled { opacity:0.5; }
+    .safe-area { height:calc(40px + env(safe-area-inset-bottom,0px)); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <div class="detail-topbar">
+      <a class="back-btn" href="javascript:history.back()"><i class="ph ph-arrow-left"></i></a>
+      <button class="fav-btn" id="btn-favorite" type="button"><i class="ph ph-heart"></i></button>
+    </div>
+    <div class="store-hero">
+      <div class="store-name" data-bind="name">—</div>
+      <div class="store-cat" data-bind="category">—</div>
+      <div class="store-rating"><span class="star">★</span><span data-bind="avg_rating">—</span> · <span data-bind="review_count">0</span>개 리뷰</div>
+    </div>
+    <div class="mini-map" id="store-mini-map"></div>
+    <div class="store-meta">
+      <div class="meta-row"><i class="ph ph-map-pin"></i><span data-bind="address">—</span></div>
+      <div class="meta-row"><i class="ph ph-phone"></i><span data-bind="phone">—</span></div>
+    </div>
+    <div class="section-title">리뷰</div>
+    <template id="tmpl-review">
+      <div class="review-item">
+        <div class="rv-head">
+          <span class="rv-nick">—</span>
+          <span class="rv-rating">—</span>
+        </div>
+        <div class="rv-body">—</div>
+      </div>
+    </template>
+    <div id="review-list"></div>
+    <div class="section-title" style="margin-top:20px">리뷰 작성</div>
+    <form class="review-form" id="review-form">
+      <select class="form-field" id="rv-stars">
+        <option value="">별점 선택</option>
+        <option value="5">★★★★★ 5점</option>
+        <option value="4">★★★★ 4점</option>
+        <option value="3">★★★ 3점</option>
+        <option value="2">★★ 2점</option>
+        <option value="1">★ 1점</option>
+      </select>
+      <textarea class="form-field" id="rv-content" placeholder="리뷰를 남겨주세요" rows="3"></textarea>
+      <button class="btn-primary" type="submit">등록</button>
+    </form>
+    <div class="safe-area"></div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootStoreDetail());</script>
+</body>
+</html>
