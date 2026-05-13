@@ -18,24 +18,29 @@
   const K_DEBUG = "sg_preview_debug";
 
   const Auth = {
-    getAccess: () => localStorage.getItem(K_ACCESS) || "",
-    getRefresh: () => localStorage.getItem(K_REFRESH) || "",
+    // sessionStorage 우선(탭별 독립), 없으면 localStorage(콘솔과 공유)
+    getAccess: () =>
+      sessionStorage.getItem(K_ACCESS) || localStorage.getItem(K_ACCESS) || "",
+    getRefresh: () =>
+      sessionStorage.getItem(K_REFRESH) || localStorage.getItem(K_REFRESH) || "",
     headers() {
       const tok = this.getAccess();
       return tok ? { Authorization: `Bearer ${tok}` } : {};
     },
+    // preview 내부에서 새로 로그인하면 sessionStorage 에만 저장 (콘솔 영향 X)
     set(access, refresh) {
-      if (access !== undefined) localStorage.setItem(K_ACCESS, access);
-      if (refresh !== undefined) localStorage.setItem(K_REFRESH, refresh);
+      if (access !== undefined) sessionStorage.setItem(K_ACCESS, access);
+      if (refresh !== undefined) sessionStorage.setItem(K_REFRESH, refresh);
     },
+    // preview 의 clear 는 탭 범위만 (콘솔의 localStorage 는 건드리지 않음)
     clear() {
-      localStorage.removeItem(K_ACCESS);
-      localStorage.removeItem(K_REFRESH);
+      sessionStorage.removeItem(K_ACCESS);
+      sessionStorage.removeItem(K_REFRESH);
     },
     requireLogin() {
       if (this.getAccess()) return true;
-      Toast.error("로그인이 필요해요. 2초 뒤 콘솔로 이동합니다.");
-      setTimeout(() => { window.location.href = "/"; }, 2000);
+      Toast.error("로그인이 필요해요. 로그인 화면으로 이동합니다.");
+      setTimeout(() => { window.location.href = "/preview/login.html"; }, 1500);
       return false;
     },
   };
@@ -182,6 +187,7 @@
       this.el.innerHTML = `
         <header>
           <strong>API 디버그</strong>
+          <button type="button" id="dbg-relogin" title="다른 계정으로 로그인 (이 탭)">⇄</button>
           <button type="button" id="dbg-clear" title="기록 지우기">↻</button>
           <button type="button" id="dbg-toggle" title="패널 토글">×</button>
         </header>
@@ -191,6 +197,10 @@
       document.body.appendChild(this.el);
       this.listEl = this.el.querySelector(".dbg-list");
       this._renderToken();
+      this.el.querySelector("#dbg-relogin").addEventListener("click", () => {
+        Auth.clear();
+        window.location.href = "/preview/login.html";
+      });
       this.el.querySelector("#dbg-clear").addEventListener("click", () => { this.listEl.innerHTML = ""; });
       this.el.querySelector("#dbg-toggle").addEventListener("click", () => this.hide());
       // 토글 버튼 (패널 외부) — 닫혀 있을 때 다시 열기
