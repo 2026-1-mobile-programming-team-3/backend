@@ -541,6 +541,78 @@
     });
   };
 
+  // ─── Page boot: 소식 ──────────────────────────────────────────────────────
+  PreviewApp.bootNews = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const CAT_LABEL = { POLICY:'정책', EVENT:'행사', VOLUNTEER:'봉사', SUPPORT:'지원' };
+    let allNews = [];
+
+    function renderNews(list) {
+      const feat = document.getElementById('news-feat');
+      const rows = document.getElementById('news-rows');
+      if (!list.length) { feat && (feat.hidden = true); rows && (rows.innerHTML = ''); return; }
+
+      const first = list[0];
+      if (feat) {
+        feat.href = `news-detail.html?id=${first.news_id}`;
+        feat.hidden = false;
+        const img = feat.querySelector('.nf-img');
+        if (img) {
+          if (first.image_url) { img.src = first.image_url; img.style.display = ''; }
+          else img.style.display = 'none';
+        }
+        const catEl = feat.querySelector('.nf-cat');
+        if (catEl) catEl.textContent = CAT_LABEL[first.category] || first.category;
+        const titleEl = feat.querySelector('.nf-title');
+        if (titleEl) titleEl.textContent = first.title;
+        const metaEl = feat.querySelector('.nf-meta');
+        if (metaEl) metaEl.textContent = `${first.published_date} · ${first.publisher || '네이버 뉴스'}`;
+      }
+
+      if (rows) {
+        const tmpl = document.getElementById('tmpl-news-row');
+        rows.innerHTML = '';
+        list.slice(1).forEach((item) => {
+          const node = tmpl.content.cloneNode(true);
+          const a = node.querySelector('a');
+          if (a) a.href = `news-detail.html?id=${item.news_id}`;
+          const catEl = node.querySelector('.nr-cat');
+          if (catEl) {
+            catEl.textContent = CAT_LABEL[item.category] || item.category;
+            const catClass = { POLICY:'policy', EVENT:'event', VOLUNTEER:'volunteer', SUPPORT:'support' };
+            catEl.className = `nr-cat ${catClass[item.category] || ''}`;
+          }
+          const titleEl = node.querySelector('.nr-title');
+          if (titleEl) titleEl.textContent = item.title;
+          const dateEl = node.querySelector('.nr-date');
+          if (dateEl) dateEl.textContent = item.published_date ? item.published_date.slice(5) : '';
+          rows.appendChild(node);
+        });
+      }
+    }
+
+    try {
+      const data = await API.get('/api/v1/news');
+      allNews = data.news || [];
+      renderNews(allNews);
+    } catch (err) {
+      Toast.error(`뉴스 로딩 실패: ${err.message}`);
+    }
+
+    const CAT_MAP = { all:'', 행사:'EVENT', 봉사:'VOLUNTEER', 지원:'SUPPORT', 정책:'POLICY' };
+    document.querySelectorAll('.chips-row .chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chips-row .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const cat = CAT_MAP[chip.textContent.trim()] ?? '';
+        const filtered = cat ? allNews.filter(n => n.category === cat) : allNews;
+        renderNews(filtered);
+      });
+    });
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;

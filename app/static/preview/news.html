@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 소식</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    /* ── 카테고리 칩 ── */
+    .chips-row {
+      display: flex; gap: 7px;
+      padding: 14px 24px 8px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .chips-row::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 999px;
+      background: var(--card); color: var(--ink-soft);
+      border: 1px solid var(--line);
+      font-size: 13px; font-weight: 700;
+      letter-spacing: -0.02em; white-space: nowrap;
+      box-shadow: var(--shadow-xs);
+      transition: background 0.2s var(--ease-out), color 0.2s, transform 0.15s var(--spring);
+      cursor: pointer;
+    }
+    .chip:active { transform: scale(0.94); }
+    .chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    /* ── 피처드 카드 ── */
+    .news-feat {
+      display: flex; gap: 14px;
+      padding: 14px 16px;
+      margin: 8px 24px 12px;
+      background: var(--card);
+      border-radius: var(--r-lg);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-md);
+      text-decoration: none; color: inherit;
+      transition: transform 0.22s var(--spring);
+      position: relative; overflow: hidden;
+    }
+    .news-feat::before {
+      content: '';
+      position: absolute; left: 0; top: 16px; bottom: 16px;
+      width: 3px; border-radius: 0 3px 3px 0;
+      background: var(--accent);
+    }
+    .news-feat:active { transform: scale(0.985); }
+    .nf-img {
+      flex: 0 0 88px; width: 88px; height: 88px;
+      border-radius: var(--r-sm); object-fit: cover;
+      background: linear-gradient(135deg, var(--sand-soft), var(--accent-soft));
+    }
+    .nf-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+    .nf-cat { font-size: 10px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); margin-bottom: 5px; }
+    .nf-title { font-size: 14px; font-weight: 900; letter-spacing: -0.03em; color: var(--ink); line-height: 1.3; }
+    .nf-meta { font-size: 11px; font-weight: 600; color: var(--ink-mute); margin-top: 5px; }
+
+    /* ── 목록 행 ── */
+    .news-rows { padding: 0 24px; display: flex; flex-direction: column; gap: 6px; }
+    .news-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      text-decoration: none; color: inherit;
+      box-shadow: var(--shadow-xs);
+      transition: transform 0.18s var(--spring);
+    }
+    .news-row:active { transform: scale(0.985); }
+    .nr-cat {
+      flex: 0 0 auto;
+      font-size: 11px; font-weight: 900;
+      padding: 3px 9px; border-radius: 999px;
+      white-space: nowrap;
+    }
+    .nr-cat.event     { background: var(--mint-dim);      color: var(--mint); }
+    .nr-cat.volunteer { background: var(--raspberry-dim); color: var(--raspberry); }
+    .nr-cat.support   { background: var(--accent-dim);    color: var(--accent); }
+    .nr-cat.policy    { background: rgba(30,18,10,0.06);  color: var(--ink-mute); }
+    .nr-title { flex: 1; font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: -0.025em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nr-date  { font-size: 11px; font-weight: 700; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body data-tab="news">
+<div class="app" id="appRoot">
+  <main class="screen" id="screen">
+
+    <!-- topbar -->
+    <header class="topbar anim-fade-slide-up">
+      <div class="tb-left">
+        <span class="tb-kicker">시흥가개</span>
+        <h1 class="tb-title">소식</h1>
+      </div>
+      <div class="tb-right">
+        <button class="tb-icon-btn"><i class="ph ph-magnifying-glass"></i></button>
+      </div>
+    </header>
+
+    <!-- 카테고리 필터 -->
+    <div class="chips-row anim-fade-slide-up delay-1">
+      <button class="chip active" data-cat="all">전체</button>
+      <button class="chip" data-cat="event">행사</button>
+      <button class="chip" data-cat="volunteer">봉사</button>
+      <button class="chip" data-cat="support">지원</button>
+      <button class="chip" data-cat="policy">정책</button>
+    </div>
+
+    <!-- 피처드 뉴스 -->
+    <a class="news-feat anim-fade-slide-up delay-2" id="news-feat" href="#">
+      <img class="nf-img" src="" alt="" loading="lazy" />
+      <div class="nf-body">
+        <span class="nf-cat">정책</span>
+        <div class="nf-title">로딩 중...</div>
+        <div class="nf-meta"></div>
+      </div>
+    </a>
+
+    <!-- 뉴스 목록 -->
+    <template id="tmpl-news-row">
+      <a class="news-row" href="#">
+        <span class="nr-cat policy">정책</span>
+        <span class="nr-title"></span>
+        <span class="nr-date"></span>
+      </a>
+    </template>
+    <div class="news-rows anim-fade-slide-up delay-3" id="news-rows"></div>
+
+    <div class="safe-area"></div>
+  </main>
+
+  <!-- 독 -->
+  <nav class="v3-dock" aria-label="주요 메뉴">
+    <button class="v3-nav-item" data-tab="home"><i class="ph ph-house"></i><span>홈</span></button>
+    <button class="v3-nav-item" data-tab="match"><i class="ph ph-handshake"></i><span>매칭</span></button>
+    <button class="v3-nav-item" data-tab="map"><i class="ph ph-map-trifold"></i><span>지도</span></button>
+    <button class="v3-nav-item" data-tab="news"><i class="ph ph-newspaper"></i><span>소식</span></button>
+    <button class="v3-nav-item" data-tab="my"><i class="ph ph-user-circle"></i><span>마이</span></button>
+  </nav>
+</div>
+
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>
+(() => {
+  const TAB_URLS = { home:'index.html', match:'match.html', map:'map.html', news:'news.html', my:'my.html' };
+  const currentTab = 'news';
+  document.querySelectorAll('.v3-nav-item').forEach(item => {
+    if (item.dataset.tab === currentTab) item.classList.add('active');
+    item.addEventListener('click', () => {
+      const tab = item.dataset.tab;
+      if (tab === currentTab) return;
+      sessionStorage.setItem('sg_from_tab', currentTab);
+      const url = TAB_URLS[tab] || tab + '.html';
+      const app = document.querySelector('.app');
+      app.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0.24,1),opacity 0.22s ease';
+      app.style.transform = 'translateX(-60px)';
+      app.style.opacity = '0';
+      setTimeout(() => { location.href = url; }, 220);
+    });
+  });
+
+  const fromTab = sessionStorage.getItem('sg_from_tab');
+  if (fromTab) {
+    sessionStorage.removeItem('sg_from_tab');
+    const app = document.querySelector('.app');
+    app.style.transition = 'none';
+    app.style.transform = 'translateX(40px)';
+    app.style.opacity = '0';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      app.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1),opacity 0.24s ease';
+      app.style.transform = 'translateX(0)';
+      app.style.opacity = '1';
+    }));
+  }
+})();
+</script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootNews());</script>
+</body>
+</html>
