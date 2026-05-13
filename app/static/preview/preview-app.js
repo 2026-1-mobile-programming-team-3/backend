@@ -320,6 +320,18 @@
     bootChat: null,   // Task 8
   };
 
+  // ─── Page boot: 홈 ─────────────────────────────────────────────────────────
+  PreviewApp.bootHome = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+    try {
+      const data = await API.get("/api/v1/home/dashboard");
+      Bind.apply(document, data);
+    } catch (err) {
+      Toast.error(`홈 로딩 실패: ${err.message}`);
+    }
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;

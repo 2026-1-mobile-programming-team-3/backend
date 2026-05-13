@@ -593,14 +593,14 @@
     <!-- ── Topbar ── -->
     <header class="topbar anim-fade-slide-up">
       <div class="tb-left">
-        <span class="tb-greeting">안녕하세요, 댕댕이주인님</span>
+        <span class="tb-greeting">안녕하세요, <span data-bind="user.nickname">—</span>님</span>
         <h1 class="tb-logo">시흥<span>가개</span></h1>
       </div>
       <div class="tb-right">
-        <span class="tb-loc-pill"><i class="ph ph-map-pin"></i>정왕동</span>
+        <span class="tb-loc-pill"><i class="ph ph-map-pin"></i><span data-bind="user.region_dong">—</span></span>
         <button class="tb-bell" aria-label="알림">
           <i class="ph ph-bell"></i>
-          <span class="dot"></span>
+          <span class="dot" data-bind-show="unread_notification_count" hidden></span>
         </button>
       </div>
     </header>
@@ -609,16 +609,16 @@
     <div class="home-variant home-h1">
       <section class="hero anim-fade-slide-up delay-1">
         <div class="hero-eyebrow">시흥가개 · 정왕동</div>
-        <div class="hero-head">오늘 산책지수<br/><em>92점</em>으로 좋아요</div>
+        <div class="hero-head">오늘 산책지수<br/><em><span data-bind="walk_score">—</span>점</em>으로 좋아요</div>
         <div class="hero-sub">
           <span>맑음 · 18°</span>
           <span class="hero-sub-dot"></span>
           <span>미세먼지 좋음</span>
         </div>
-        <a class="match-pill anim-scale-in delay-2" href="match.html">
-          <span class="match-pill-dday">D-2</span>
-          <span class="match-pill-text">병원 이동 · 신청 2건 검토하기</span>
-          <i class="ph-bold ph-arrow-right"></i>
+        <a class="match-pill anim-scale-in delay-2" data-bind-show="my_match_summary.as_author" href="match.html">
+          <span class="match-pill-dday" data-bind="my_match_summary.as_author.status">—</span>
+          <span class="match-pill-text" data-bind="my_match_summary.as_author.title">매칭 정보 불러오는 중</span>
+          <i class="ph ph-arrow-right"></i>
         </a>
       </section>
     </div>
@@ -643,11 +643,6 @@
           <span class="h2-gauge-seg" style="opacity:0.40"></span>
         </div>
       </div>
-      <a class="match-pill anim-scale-in delay-2" style="margin:14px 24px 0;display:inline-flex" href="match.html">
-        <span class="match-pill-dday">D-2</span>
-        <span class="match-pill-text">병원 이동 · 신청 2건 검토하기</span>
-        <i class="ph-bold ph-arrow-right"></i>
-      </a>
     </div>
 
     <!-- ════ H3: 다크 그라디언트 히어로 ════ -->
@@ -1512,5 +1507,7 @@ Object.assign(window, {
 })();
 </script>
 <script src="design-nav.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootHome());</script>
 </body>
 </html>
