@@ -350,6 +350,31 @@
     }
   };
 
+  // ─── Page boot: 매칭 리스트 ────────────────────────────────────────────────
+  PreviewApp.bootMatch = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+    const tabs = document.querySelectorAll(".match-tabs [data-status]");
+    let current = "";
+    async function load(status) {
+      try {
+        const qs = status ? `?status=${status}` : "";
+        const data = await API.get(`/api/v1/matches${qs}`);
+        Bind.apply(document, data);
+      } catch (err) {
+        Toast.error(`매칭 목록 실패: ${err.message}`);
+      }
+    }
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.toggle("active", t === tab));
+        current = tab.getAttribute("data-status") || "";
+        load(current);
+      });
+    });
+    await load(current);
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;

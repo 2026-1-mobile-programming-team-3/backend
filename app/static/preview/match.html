@@ -287,7 +287,7 @@
 
     <!-- 탭 -->
     <div class="match-tabs anim-fade-slide-up delay-1">
-      <button class="match-tab active" data-status="all">전체<span class="tab-cnt">8</span></button>
+      <button class="match-tab active" data-status="">전체<span class="tab-cnt">8</span></button>
       <button class="match-tab" data-status="WAITING">모집중<span class="tab-cnt">5</span></button>
       <button class="match-tab" data-status="MATCHING">검토중<span class="tab-cnt">2</span></button>
       <button class="match-tab" data-status="PROGRESS">진행중<span class="tab-cnt">1</span></button>
@@ -300,33 +300,18 @@
     </div>
 
     <!-- M1: 기본 세로 카드 -->
+    <template id="tmpl-match">
+      <a class="mc" data-bind-attr="href:#match-{match_id}">
+        <div class="mc-top">
+          <span class="mc-badge" data-bind="status">—</span>
+        </div>
+        <div class="mc-title" data-bind="title">—</div>
+        <div class="mc-meta"><i class="ph ph-map-pin"></i><span data-bind="address">—</span><span class="mc-meta-dot"></span><i class="ph ph-calendar"></i><span data-bind="desired_date">—</span></div>
+        <div class="mc-bottom"><span class="mc-cnt"><i class="ph ph-user"></i><span data-bind="author_nickname">—</span></span></div>
+      </a>
+    </template>
     <div class="match-variant match-m1">
-      <div class="match-list">
-        <a class="mc anim-fade-slide-up delay-2" href="match.html" data-status="WAITING" data-s="WAITING">
-          <div class="mc-top"><span class="mc-badge" data-s="WAITING">모집중</span><span class="mc-dday">D-2</span></div>
-          <div class="mc-title">정왕동 실외견 병원 이동 부탁드립니다</div>
-          <div class="mc-meta"><i class="ph ph-map-pin"></i>정왕동<span class="mc-meta-dot"></span>0.8km<span class="mc-meta-dot"></span><i class="ph ph-calendar"></i>5월 10일</div>
-          <div class="mc-bottom"><span class="mc-pet"><i class="ph ph-paw-print"></i>파댕이 · 강아지</span><span class="mc-cnt"><i class="ph ph-users"></i>신청 2건</span></div>
-        </a>
-        <a class="mc anim-fade-slide-up delay-3" href="#" data-status="WAITING" data-s="WAITING">
-          <div class="mc-top"><span class="mc-badge" data-s="WAITING">모집중</span><span class="mc-dday">D-4</span></div>
-          <div class="mc-title">배곧 동물병원 중성화 수술 이동 도와주세요</div>
-          <div class="mc-meta"><i class="ph ph-map-pin"></i>배곧신도시<span class="mc-meta-dot"></span>2.3km<span class="mc-meta-dot"></span><i class="ph ph-calendar"></i>5월 12일</div>
-          <div class="mc-bottom"><span class="mc-pet"><i class="ph ph-paw-print"></i>냥이 · 고양이</span><span class="mc-cnt"><i class="ph ph-users"></i>신청 0건</span></div>
-        </a>
-        <a class="mc anim-fade-slide-up delay-4" href="#" data-status="MATCHING" data-s="MATCHING">
-          <div class="mc-top"><span class="mc-badge" data-s="MATCHING">검토중</span></div>
-          <div class="mc-title">목감동 → 시흥시청 병원 이동 지원 요청</div>
-          <div class="mc-meta"><i class="ph ph-map-pin"></i>목감동<span class="mc-meta-dot"></span>4.1km<span class="mc-meta-dot"></span><i class="ph ph-calendar"></i>5월 8일</div>
-          <div class="mc-bottom"><span class="mc-pet"><i class="ph ph-paw-print"></i>강아지</span><span class="mc-cnt"><i class="ph ph-users"></i>신청 3건</span></div>
-        </a>
-        <a class="mc anim-fade-slide-up delay-5" href="#" data-status="PROGRESS" data-s="PROGRESS">
-          <div class="mc-top"><span class="mc-badge" data-s="PROGRESS">진행중</span></div>
-          <div class="mc-title">정왕동 실외견 검진 이동</div>
-          <div class="mc-meta"><i class="ph ph-map-pin"></i>정왕동<span class="mc-meta-dot"></span>1.2km<span class="mc-meta-dot"></span><i class="ph ph-calendar"></i>5월 6일</div>
-          <div class="mc-bottom"><span class="mc-pet"><i class="ph ph-paw-print"></i>강아지</span></div>
-        </a>
-      </div>
+      <div class="match-list" id="match-list" data-bind-each="items" data-template="#tmpl-match"></div>
     </div>
 
     <!-- M2: 그라디언트 배경 카드 -->
@@ -1064,19 +1049,6 @@ Object.assign(window, {
     });
   });
 
-  // 탭 필터
-  const tabs = document.querySelectorAll('.match-tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const status = tab.dataset.status;
-      document.querySelectorAll('.mc[data-status]').forEach(card => {
-        card.style.display = (status === 'all' || card.dataset.status === status) ? '' : 'none';
-      });
-    });
-  });
-
   // 진입 애니
   const fromTab = sessionStorage.getItem('sg_from_tab');
   if (fromTab) {
@@ -1091,5 +1063,7 @@ Object.assign(window, {
 })();
 </script>
 <script src="design-nav.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootMatch());</script>
 </body>
 </html>
