@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 매칭 상세</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .detail-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 12px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .back-btn i { font-size:18px; }
+    .detail-content { padding:0 24px; }
+    .detail-badge { display:inline-flex; align-items:center; padding:5px 14px; border-radius:999px;
+      font-size:12px; font-weight:900; background:var(--accent-dim); color:var(--accent); margin-bottom:12px; }
+    .detail-title { font-size:22px; font-weight:900; letter-spacing:-0.04em; color:var(--ink); line-height:1.3; margin-bottom:12px; }
+    .detail-meta { display:flex; flex-direction:column; gap:7px; font-size:13px; font-weight:600; color:var(--ink-mute); }
+    .detail-meta-row { display:flex; align-items:center; gap:8px; }
+    .detail-meta-row i { font-size:14px; }
+    .detail-divider { height:1px; background:var(--line); margin:20px 0; }
+    .detail-section-title { font-size:14px; font-weight:900; color:var(--ink); margin-bottom:12px; }
+    .detail-body { font-size:14px; font-weight:600; line-height:1.7; color:var(--ink-soft); }
+    .applicant-row { display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+    .applicant-row:last-child { border-bottom:none; }
+    .app-avatar { width:40px; height:40px; border-radius:50%; background:var(--accent-soft);
+      display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--accent); flex-shrink:0; }
+    .app-info { flex:1; }
+    .app-nickname { font-size:14px; font-weight:800; color:var(--ink); }
+    .app-status { font-size:11.5px; font-weight:700; color:var(--ink-mute); }
+    .app-actions { display:flex; gap:8px; }
+    .btn-accept { padding:8px 16px; border-radius:999px; background:var(--ink); color:#fff; border:none; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+    .btn-reject { padding:8px 14px; border-radius:999px; background:var(--bg-2,#f0ebe3); color:var(--ink-mute); border:none; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .detail-cta { padding:16px 24px calc(16px + env(safe-area-inset-bottom,0px)); position:sticky; bottom:0; background:var(--bg); }
+    .btn-cta { width:100%; padding:16px; border-radius:var(--r-lg); background:var(--raspberry); color:#fff;
+      border:none; font:inherit; font-size:15px; font-weight:800; cursor:pointer; }
+    .btn-cta:active { opacity:0.85; }
+    .btn-cta:disabled { opacity:0.5; }
+    .safe-area { height:calc(80px + env(safe-area-inset-bottom,0px)); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <div class="detail-topbar">
+      <a class="back-btn" href="match.html"><i class="ph ph-arrow-left"></i></a>
+    </div>
+
+    <div class="detail-content">
+      <div class="detail-badge" data-bind="status_label">모집중</div>
+      <div class="detail-title" data-bind="title">—</div>
+      <div class="detail-meta">
+        <div class="detail-meta-row"><i class="ph ph-user"></i><span data-bind="author_nickname">—</span></div>
+        <div class="detail-meta-row"><i class="ph ph-paw-print"></i><span data-bind="pet_name">—</span> · <span data-bind="pet_species">—</span></div>
+        <div class="detail-meta-row"><i class="ph ph-calendar"></i><span data-bind="desired_date">날짜 미정</span></div>
+        <div class="detail-meta-row"><i class="ph ph-map-pin"></i><span data-bind="address">주소 미입력</span></div>
+      </div>
+      <div class="detail-divider"></div>
+      <div class="detail-section-title">요청 내용</div>
+      <div class="detail-body" data-bind="content">—</div>
+
+      <!-- 신청자 목록 (오너만) -->
+      <div id="apps-section" hidden>
+        <div class="detail-divider"></div>
+        <div class="detail-section-title">신청자 목록 (<span data-bind="applications_count">0</span>명)</div>
+        <template id="tmpl-applicant">
+          <div class="applicant-row">
+            <div class="app-avatar"><i class="ph ph-user"></i></div>
+            <div class="app-info">
+              <div class="app-nickname">—</div>
+              <div class="app-status">—</div>
+            </div>
+            <div class="app-actions">
+              <button class="btn-accept" type="button">수락</button>
+              <button class="btn-reject" type="button">거절</button>
+            </div>
+          </div>
+        </template>
+        <div id="apps-list"></div>
+      </div>
+    </div>
+
+    <div class="safe-area"></div>
+  </main>
+
+  <!-- 봉사자 신청 버튼 -->
+  <div class="detail-cta">
+    <button class="btn-cta" id="btn-apply" hidden>봉사 신청하기</button>
+  </div>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootMatchDetail());</script>
+</body>
+</html>
