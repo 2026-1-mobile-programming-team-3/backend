@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>시흥가개 — 반려동물</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .edit-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 12px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .back-btn i { font-size:18px; }
+    .page-title { font-size:20px; font-weight:900; letter-spacing:-0.04em; color:var(--ink); flex:1; }
+    .edit-body { padding:20px 24px; }
+    .field-label { font-size:12px; font-weight:800; color:var(--ink-mute); letter-spacing:0.04em;
+      text-transform:uppercase; margin-bottom:6px; }
+    .form-field { width:100%; padding:14px 16px; border-radius:var(--r-lg);
+      border:1.5px solid var(--line); background:var(--card); font:inherit;
+      font-size:14px; font-weight:600; color:var(--ink); outline:none;
+      transition:border-color 0.18s; box-sizing:border-box; margin-bottom:16px;
+      appearance:none; }
+    .form-field:focus { border-color:var(--accent); }
+    .checkbox-row { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+    .checkbox-row label { font-size:14px; font-weight:700; color:var(--ink); }
+    .btn-primary { width:100%; padding:16px; border-radius:var(--r-lg); background:var(--ink);
+      color:#fff; border:none; font:inherit; font-size:15px; font-weight:800; cursor:pointer; margin-top:8px; }
+    .btn-danger { width:100%; padding:14px; border-radius:var(--r-lg); background:var(--raspberry-soft);
+      color:var(--raspberry); border:1.5px solid rgba(240,66,112,0.18); font:inherit;
+      font-size:14px; font-weight:800; cursor:pointer; margin-top:12px; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <div class="edit-topbar">
+      <a class="back-btn" href="my.html"><i class="ph ph-arrow-left"></i></a>
+      <span class="page-title" id="form-title">반려동물 추가</span>
+    </div>
+    <div class="edit-body">
+      <form id="pet-form">
+        <div class="field-label">이름</div>
+        <input class="form-field" type="text" id="pet-name" placeholder="반려동물 이름" required />
+        <div class="field-label">종류</div>
+        <select class="form-field" id="pet-species">
+          <option value="DOG">강아지</option>
+          <option value="CAT">고양이</option>
+        </select>
+        <div class="field-label">품종 (선택)</div>
+        <input class="form-field" type="text" id="pet-breed" placeholder="예: 믹스" />
+        <div class="checkbox-row">
+          <input type="checkbox" id="pet-neutered" />
+          <label for="pet-neutered">중성화 완료</label>
+        </div>
+        <button class="btn-primary" type="submit">저장</button>
+      </form>
+      <button class="btn-danger" id="btn-delete" hidden type="button">반려동물 삭제</button>
+    </div>
+    <div class="safe-area"></div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootPetForm());</script>
+</body>
+</html>

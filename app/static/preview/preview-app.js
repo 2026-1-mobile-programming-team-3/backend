@@ -1183,6 +1183,59 @@
     });
   };
 
+  // ─── Page boot: 반려동물 추가/수정 ────────────────────────────────────────
+  PreviewApp.bootPetForm = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const params = new URLSearchParams(location.search);
+    const petId = parseInt(params.get('pet_id'), 10) || null;
+    const isEdit = !!petId;
+
+    if (isEdit) {
+      document.getElementById('form-title').textContent = '반려동물 수정';
+      document.getElementById('btn-delete').hidden = false;
+      try {
+        const me = await API.get('/api/v1/users/me');
+        const pet = (me.pets || []).find(p => p.pet_id === petId);
+        if (pet) {
+          document.getElementById('pet-name').value = pet.name || '';
+          document.getElementById('pet-species').value = pet.species || 'DOG';
+          document.getElementById('pet-breed').value = pet.breed || '';
+          document.getElementById('pet-neutered').checked = !!pet.is_neutered;
+        }
+      } catch (err) { Toast.error(err.message); }
+    }
+
+    document.getElementById('pet-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        name: document.getElementById('pet-name').value.trim(),
+        species: document.getElementById('pet-species').value,
+        breed: document.getElementById('pet-breed').value.trim() || null,
+        is_neutered: document.getElementById('pet-neutered').checked,
+      };
+      try {
+        if (isEdit) {
+          await API.patch(`/api/v1/pets/${petId}`, body);
+        } else {
+          await API.post('/api/v1/pets', body);
+        }
+        Toast.ok(isEdit ? '수정되었습니다.' : '반려동물이 추가되었습니다.');
+        setTimeout(() => { location.href = 'my.html'; }, 800);
+      } catch (err) { Toast.error(err.message); }
+    });
+
+    document.getElementById('btn-delete')?.addEventListener('click', async () => {
+      if (!confirm('반려동물을 삭제할까요?')) return;
+      try {
+        await API.delete(`/api/v1/pets/${petId}`);
+        Toast.ok('삭제되었습니다.');
+        setTimeout(() => { location.href = 'my.html'; }, 800);
+      } catch (err) { Toast.error(err.message); }
+    });
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;
