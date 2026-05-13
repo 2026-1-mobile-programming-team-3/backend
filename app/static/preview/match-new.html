@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 이동 지원 요청</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .wiz-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 12px; }
+    .wiz-back { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color:var(--ink-soft); }
+    .wiz-back i { font-size:18px; }
+    .wiz-title { font-size:17px; font-weight:900; letter-spacing:-0.04em; color:var(--ink); flex:1; }
+    .wiz-step { font-size:12px; font-weight:700; color:var(--ink-mute); }
+    .wizard-step { padding:0 24px; }
+    .wiz-section-title { font-size:15px; font-weight:900; letter-spacing:-0.03em; color:var(--ink); margin:20px 0 14px; }
+    .pet-select-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .pet-v-card { display:flex; flex-direction:column; align-items:center; gap:8px; padding:14px 10px;
+      background:var(--card); border:1.5px solid var(--line); border-radius:var(--r-lg);
+      cursor:pointer; transition:border-color 0.18s, background 0.18s; }
+    .pet-v-card.selected { border-color:var(--accent); background:var(--accent-soft); }
+    .pet-v-icon { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .pet-v-icon.dog { background:var(--accent-soft); color:var(--accent); }
+    .pet-v-icon.cat { background:var(--raspberry-soft); color:var(--raspberry); }
+    .pet-v-name { font-size:13px; font-weight:800; color:var(--ink); letter-spacing:-0.02em; }
+    .cal-month-row { display:flex; align-items:center; justify-content:center; margin-bottom:12px; }
+    .cal-month-label { font-size:15px; font-weight:900; color:var(--ink); }
+    .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center; }
+    .cal-day { width:100%; aspect-ratio:1; border-radius:10px; border:none; background:none;
+      font:inherit; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; transition:background 0.15s; }
+    .cal-day:hover:not(:disabled) { background:var(--accent-soft); }
+    .cal-day.selected { background:var(--ink); color:#fff; }
+    .cal-day.past { color:var(--line-strong,#ddd); }
+    .time-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+    .time-chip { padding:8px 16px; border-radius:999px; border:1.5px solid var(--line);
+      background:var(--card); font:inherit; font-size:13px; font-weight:700;
+      color:var(--ink-soft); cursor:pointer; transition:background 0.15s, border-color 0.15s; }
+    .time-chip.active { background:var(--ink); color:#fff; border-color:var(--ink); }
+    .form-wrap { display:flex; flex-direction:column; gap:12px; }
+    .form-field { width:100%; padding:14px 16px; border-radius:var(--r-lg);
+      border:1.5px solid var(--line); background:var(--card);
+      font:inherit; font-size:14px; font-weight:600; color:var(--ink);
+      outline:none; transition:border-color 0.18s; box-sizing:border-box; resize:none; }
+    .form-field:focus { border-color:var(--accent); }
+    .form-field::placeholder { color:var(--ink-mute); }
+    .char-count { font-size:11px; font-weight:600; color:var(--ink-mute); text-align:right; }
+    .btn-primary { width:100%; padding:16px; border-radius:var(--r-lg);
+      background:var(--ink); color:#fff; border:none; font:inherit;
+      font-size:15px; font-weight:800; cursor:pointer; margin-top:8px;
+      transition:transform 0.18s var(--spring); }
+    .btn-primary:active { transform:scale(0.97); }
+    .btn-primary:disabled { opacity:0.5; }
+    .safe-area { height:calc(40px + env(safe-area-inset-bottom,0px)); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <div class="wiz-topbar">
+      <a class="wiz-back" href="match.html"><i class="ph ph-arrow-left"></i></a>
+      <span class="wiz-title">이동 지원 요청</span>
+      <span class="wiz-step" id="step-indicator">1/3</span>
+    </div>
+
+    <!-- Step 1: 반려동물 선택 -->
+    <div class="wizard-step" id="step-0">
+      <div class="wiz-section-title">어떤 반려동물인가요?</div>
+      <div class="pet-select-grid" id="pet-select-grid"></div>
+      <button class="btn-primary" id="btn-step1-next" style="margin-top:32px">다음</button>
+    </div>
+
+    <!-- Step 2: 일정 선택 -->
+    <div class="wizard-step" id="step-1" hidden>
+      <div class="wiz-section-title">언제 필요하신가요?</div>
+      <div class="cal-month-row"><span class="cal-month-label" id="cal-month-label"></span></div>
+      <div class="cal-grid" id="calendar-grid"></div>
+      <div class="time-chips">
+        <button class="time-chip" type="button" data-time="09:00">오전 9시</button>
+        <button class="time-chip" type="button" data-time="12:00">낮 12시</button>
+        <button class="time-chip" type="button" data-time="15:00">오후 3시</button>
+        <button class="time-chip" type="button" data-time="18:00">오후 6시</button>
+      </div>
+      <button class="btn-primary" id="btn-step2-next" style="margin-top:32px">다음</button>
+    </div>
+
+    <!-- Step 3: 요청 내용 -->
+    <div class="wizard-step" id="step-2" hidden>
+      <div class="wiz-section-title">요청 내용을 알려주세요</div>
+      <form class="form-wrap" id="match-new-form">
+        <input class="form-field" type="text" id="match-title" placeholder="제목 (예: 정왕동 병원 이동 부탁드려요)" required />
+        <input class="form-field" type="text" id="match-address" placeholder="목적지 주소 (선택)" />
+        <textarea class="form-field" id="match-content" placeholder="추가 요청사항이나 메모 (500자 이내)" rows="5" maxlength="500"></textarea>
+        <div class="char-count"><span id="char-cnt">0</span>/500</div>
+        <button class="btn-primary" type="submit">요청 등록하기</button>
+      </form>
+    </div>
+
+    <div class="safe-area"></div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>
+document.getElementById('match-content').addEventListener('input', function() {
+  document.getElementById('char-cnt').textContent = this.value.length;
+});
+document.addEventListener("DOMContentLoaded", () => PreviewApp.bootMatchNew());
+</script>
+</body>
+</html>

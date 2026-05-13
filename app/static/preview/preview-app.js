@@ -586,6 +586,112 @@
     await loadNearby(currentCat);
   };
 
+  // ─── Page boot: 매칭 생성 ────────────────────────────────────────────────
+  PreviewApp.bootMatchNew = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const state = { petId: null, date: null, time: null, title: '', address: '', content: '' };
+    let myPets = [];
+
+    const steps = document.querySelectorAll('.wizard-step');
+    function showStep(n) {
+      steps.forEach((s, i) => s.hidden = i !== n);
+      document.getElementById('step-indicator').textContent = `${n+1}/3`;
+    }
+
+    try {
+      const me = await API.get('/api/v1/users/me');
+      myPets = me.pets || [];
+      const petGrid = document.getElementById('pet-select-grid');
+      petGrid.innerHTML = '';
+      myPets.forEach((p) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'pet-v-card';
+        card.dataset.petId = p.pet_id;
+        card.innerHTML = `<div class="pet-v-icon ${p.species === 'CAT' ? 'cat' : 'dog'}"><i class="ph ph-${p.species === 'CAT' ? 'cat' : 'dog'}"></i></div><div class="pet-v-name">${p.name}</div>`;
+        card.addEventListener('click', () => {
+          petGrid.querySelectorAll('.pet-v-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          state.petId = p.pet_id;
+        });
+        petGrid.appendChild(card);
+      });
+    } catch (err) {
+      Toast.error(`반려동물 로딩 실패: ${err.message}`);
+    }
+
+    document.getElementById('btn-step1-next').addEventListener('click', () => {
+      if (!state.petId) { Toast.error('반려동물을 선택해 주세요.'); return; }
+      showStep(1);
+      initCalendar();
+    });
+
+    function initCalendar() {
+      const cal = document.getElementById('calendar-grid');
+      const now = new Date();
+      const year = now.getFullYear(), month = now.getMonth();
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      document.getElementById('cal-month-label').textContent = `${year}년 ${month+1}월`;
+      cal.innerHTML = '';
+      for (let i = 0; i < firstDay; i++) cal.insertAdjacentHTML('beforeend', '<span></span>');
+      for (let d = 1; d <= daysInMonth; d++) {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.textContent = d; btn.className = 'cal-day';
+        if (new Date(year, month, d) < now) { btn.disabled = true; btn.className += ' past'; }
+        btn.addEventListener('click', () => {
+          cal.querySelectorAll('.cal-day').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          state.date = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        });
+        cal.appendChild(btn);
+      }
+    }
+
+    document.querySelectorAll('.time-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state.time = chip.dataset.time;
+      });
+    });
+
+    document.getElementById('btn-step2-next').addEventListener('click', () => {
+      if (!state.date) { Toast.error('날짜를 선택해 주세요.'); return; }
+      showStep(2);
+    });
+
+    document.getElementById('match-new-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      state.title = document.getElementById('match-title').value.trim();
+      state.address = document.getElementById('match-address').value.trim();
+      state.content = document.getElementById('match-content').value.trim();
+      if (!state.title) { Toast.error('제목을 입력해 주세요.'); return; }
+      const btn = e.submitter || e.target.querySelector('[type=submit]');
+      btn.disabled = true;
+      try {
+        const body = {
+          pet_id: state.petId,
+          title: state.title,
+          address: state.address || null,
+          content: state.content,
+          desired_date: state.date,
+          latitude: 37.3451,
+          longitude: 126.7322,
+        };
+        const created = await API.post('/api/v1/matches', body);
+        location.href = `match-detail.html?id=${created.match_id}`;
+      } catch (err) {
+        Toast.error(`요청 생성 실패: ${err.message}`);
+        btn.disabled = false;
+      }
+    });
+
+    showStep(0);
+  };
+
   // ─── Page boot: 채팅 ──────────────────────────────────────────────────────
   PreviewApp.bootChat = async function () {
     if (!Auth.requireLogin()) return;
@@ -810,6 +916,89 @@
         Toast.error(err.message);
       }
     });
+  };
+
+  // ─── Page boot: 매칭 상세 ─────────────────────────────────────────────────
+  PreviewApp.bootMatchDetail = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const params = new URLSearchParams(location.search);
+    const matchId = parseInt(params.get('id'), 10);
+    if (!matchId) { Toast.error('잘못된 접근입니다.'); return; }
+
+    let me, detail;
+    try {
+      [me, detail] = await Promise.all([
+        API.get('/api/v1/users/me'),
+        API.get(`/api/v1/matches/${matchId}`),
+      ]);
+    } catch (err) { Toast.error(err.message); return; }
+
+    const STATUS_LABEL = { WAITING:'모집중', MATCHING:'검토중', PROGRESS:'진행중', DONE:'완료' };
+    const isOwner = detail.author?.user_id === me.id;
+
+    Bind.apply(document, {
+      ...detail,
+      status_label: STATUS_LABEL[detail.status] || detail.status,
+      pet_name: detail.pet?.name || '—',
+      pet_species: detail.pet?.species === 'CAT' ? '고양이' : '강아지',
+      author_nickname: detail.author?.nickname || '—',
+    });
+
+    const appsSection = document.getElementById('apps-section');
+    if (appsSection) appsSection.hidden = !isOwner;
+
+    if (isOwner && detail.status === 'WAITING') {
+      try {
+        const apps = await API.get(`/api/v1/matches/${matchId}/applications`);
+        const listEl = document.getElementById('apps-list');
+        const tmpl = document.getElementById('tmpl-applicant');
+        (apps.items || []).forEach((app) => {
+          const node = tmpl.content.cloneNode(true);
+          node.querySelector('.app-nickname').textContent = app.applicant?.nickname || '—';
+          node.querySelector('.app-status').textContent = app.status;
+          const acceptBtn = node.querySelector('.btn-accept');
+          const rejectBtn = node.querySelector('.btn-reject');
+          acceptBtn?.addEventListener('click', async () => {
+            try {
+              await API.patch(`/api/v1/matches/${matchId}/applications/${app.application_id}`, { action: 'ACCEPT' });
+              Toast.ok('신청을 수락했습니다.');
+              location.href = `chat.html?match_id=${matchId}&application_id=${app.application_id}`;
+            } catch (err) { Toast.error(err.message); }
+          });
+          rejectBtn?.addEventListener('click', async () => {
+            try {
+              await API.patch(`/api/v1/matches/${matchId}/applications/${app.application_id}`, { action: 'REJECT' });
+              Toast.ok('거절했습니다.');
+              rejectBtn.disabled = true;
+              rejectBtn.textContent = '거절됨';
+            } catch (err) { Toast.error(err.message); }
+          });
+          listEl.appendChild(node);
+        });
+      } catch (err) { Toast.error(err.message); }
+    }
+
+    const applyBtn = document.getElementById('btn-apply');
+    if (applyBtn) {
+      if (!isOwner && detail.status === 'WAITING') {
+        applyBtn.hidden = false;
+        applyBtn.addEventListener('click', async () => {
+          applyBtn.disabled = true;
+          try {
+            await API.post(`/api/v1/matches/${matchId}/apply`, { message: '' });
+            Toast.ok('봉사 신청이 완료되었습니다.');
+            applyBtn.textContent = '신청 완료';
+          } catch (err) {
+            Toast.error(err.message);
+            applyBtn.disabled = false;
+          }
+        });
+      } else {
+        applyBtn.hidden = true;
+      }
+    }
   };
 
   // 전역 노출
