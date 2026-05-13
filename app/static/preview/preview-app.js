@@ -610,7 +610,8 @@
         card.type = 'button';
         card.className = 'pet-v-card';
         card.dataset.petId = p.pet_id;
-        card.innerHTML = `<div class="pet-v-icon ${p.species === 'CAT' ? 'cat' : 'dog'}"><i class="ph ph-${p.species === 'CAT' ? 'cat' : 'dog'}"></i></div><div class="pet-v-name">${p.name}</div>`;
+        card.innerHTML = `<div class="pet-v-icon ${p.species === 'CAT' ? 'cat' : 'dog'}"><i class="ph ph-${p.species === 'CAT' ? 'cat' : 'dog'}"></i></div><div class="pet-v-name"></div>`;
+        card.querySelector('.pet-v-name').textContent = p.name;
         card.addEventListener('click', () => {
           petGrid.querySelectorAll('.pet-v-card').forEach(c => c.classList.remove('selected'));
           card.classList.add('selected');
@@ -640,7 +641,7 @@
       for (let d = 1; d <= daysInMonth; d++) {
         const btn = document.createElement('button');
         btn.type = 'button'; btn.textContent = d; btn.className = 'cal-day';
-        if (new Date(year, month, d) < now) { btn.disabled = true; btn.className += ' past'; }
+        if (new Date(year, month, d) < new Date(year, month, now.getDate())) { btn.disabled = true; btn.className += ' past'; }
         btn.addEventListener('click', () => {
           cal.querySelectorAll('.cal-day').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
