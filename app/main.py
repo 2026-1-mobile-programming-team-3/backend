@@ -15,15 +15,18 @@ from app.core.rate_limit import limiter
 from app.admin.views import (
     CalendarEventAdmin,
     ChatMessageAdmin,
+    ChatRoomAdmin,
     DeviceAdmin,
     MatchAdmin,
     MatchApplicationAdmin,
     MatchReviewAdmin,
     NotificationAdmin,
+    NotificationSettingAdmin,
     PetAdmin,
     RefreshTokenAdmin,
     ReportAdmin,
     StoreAdmin,
+    StoreFavoriteAdmin,
     StoreReviewAdmin,
     UserAdmin,
     VolunteerRequestAdmin,
@@ -74,6 +77,13 @@ app.mount(
     name="static",
 )
 
+# Branch 2 — 모바일 앱 미리보기 (gagae-design/v2 모방). 정적 서빙만.
+app.mount(
+    "/preview",
+    StaticFiles(directory=str(BASE_DIR / "static" / "preview"), html=True),
+    name="preview",
+)
+
 app.include_router(api_router, prefix=API_V1_PREFIX)
 app.include_router(web_router)
 
@@ -86,11 +96,14 @@ admin.add_view(DeviceAdmin)
 admin.add_view(RefreshTokenAdmin)
 admin.add_view(PetAdmin)
 admin.add_view(NotificationAdmin)
+admin.add_view(NotificationSettingAdmin)
 admin.add_view(MatchAdmin)
 admin.add_view(MatchApplicationAdmin)
+admin.add_view(ChatRoomAdmin)
 admin.add_view(ChatMessageAdmin)
 admin.add_view(MatchReviewAdmin)
 admin.add_view(StoreAdmin)
+admin.add_view(StoreFavoriteAdmin)
 admin.add_view(StoreReviewAdmin)
 admin.add_view(VolunteerRequestAdmin)
 admin.add_view(ReportAdmin)

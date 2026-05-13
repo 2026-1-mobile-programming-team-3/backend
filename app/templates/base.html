@@ -5,14 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}시흥가개 백엔드 콘솔{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}" />
+    <script>
+        // 깜빡임 방지 — 본문 그리기 전에 테마 반영
+        (function () {
+            try {
+                var saved = localStorage.getItem("sg_theme");
+                if (!saved && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                    saved = "dark";
+                }
+                document.documentElement.dataset.theme = saved || "light";
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body>
     <header class="topbar">
-        <h1><a href="/">시흥가개 백엔드 콘솔</a></h1>
+        <h1><a href="/">시흥가개 콘솔</a></h1>
+        <div class="search-wrap">
+            <input id="input-search" type="search" placeholder="엔드포인트·키워드 검색 (단축키 /)" autocomplete="off" />
+            <span class="search-hint">/</span>
+        </div>
         <nav>
+            <a href="/preview/" target="_blank" rel="noopener">앱 미리보기 ↗</a>
             <a href="/docs">Swagger</a>
-            <a href="/redoc">ReDoc</a>
+            <a href="/admin/" target="_blank" rel="noopener">Admin</a>
             <a href="/health">/health</a>
+            <button type="button" id="btn-clear-forms" class="icon-btn" title="저장된 입력값 모두 지우기">🗑</button>
+            <button type="button" id="btn-theme" class="icon-btn" title="다크 모드 전환">🌙</button>
         </nav>
     </header>
     <main class="container">
