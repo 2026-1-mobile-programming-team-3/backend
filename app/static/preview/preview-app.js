@@ -1158,6 +1158,31 @@
     } catch (err) { Toast.error(err.message); }
   };
 
+  // ─── Page boot: 프로필 편집 ───────────────────────────────────────────────
+  PreviewApp.bootProfileEdit = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    let me;
+    try {
+      me = await API.get('/api/v1/users/me');
+      document.getElementById('edit-nickname').value = me.nickname || '';
+    } catch (err) { Toast.error(err.message); return; }
+
+    document.getElementById('profile-edit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nickname = document.getElementById('edit-nickname').value.trim();
+      if (!nickname) { Toast.error('닉네임을 입력해 주세요.'); return; }
+      const btn = e.submitter || e.target.querySelector('[type=submit]');
+      btn.disabled = true;
+      try {
+        await API.patch('/api/v1/users/me', { nickname });
+        Toast.ok('프로필이 저장되었습니다.');
+        setTimeout(() => { location.href = 'my.html'; }, 800);
+      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+    });
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;
