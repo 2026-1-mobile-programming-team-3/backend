@@ -36,8 +36,9 @@
   <div class="auth-logo">시흥<span>가개</span></div>
   <div class="auth-sub">새 계정 만들기</div>
   <form class="auth-form" id="signupForm">
+    <input class="auth-field" type="email" id="email" placeholder="이메일" autocomplete="email" required />
     <input class="auth-field" type="text" id="nickname" placeholder="닉네임" required />
-    <input class="auth-field" type="tel" id="phone" placeholder="전화번호" autocomplete="tel" required />
+    <input class="auth-field" type="tel" id="phone" placeholder="전화번호" autocomplete="tel" />
     <input class="auth-field" type="password" id="password" placeholder="비밀번호 (8자 이상)" autocomplete="new-password" minlength="8" required />
     <div class="auth-err" id="errMsg"></div>
     <button class="auth-btn" type="submit">가입하기</button>
@@ -51,15 +52,16 @@
   DebugPanel.mount();
   document.getElementById('signupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const email = document.getElementById('email').value.trim();
     const nickname = document.getElementById('nickname').value.trim();
-    const phone = document.getElementById('phone').value.trim();
+    const phone = document.getElementById('phone').value.trim() || undefined;
     const password = document.getElementById('password').value;
     const errEl = document.getElementById('errMsg');
     const btn = e.submitter || e.target.querySelector('[type=submit]');
     errEl.textContent = '';
     btn.disabled = true;
     try {
-      await Auth.signup(phone, password, nickname);
+      await Auth.signup(email, phone, password, nickname);
       location.href = 'index.html';
     } catch (err) {
       const detail = err.body?.detail;

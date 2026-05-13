@@ -42,8 +42,8 @@
       this.set(data.access_token, data.refresh_token);
       return data;
     },
-    async signup(phone, password, nickname) {
-      const data = await API.post('/api/v1/auth/signup', { phone, password, nickname });
+    async signup(email, phone, password, nickname) {
+      const data = await API.post('/api/v1/auth/signup', { email, phone, password, nickname });
       this.set(data.access_token, data.refresh_token);
       return data;
     },
