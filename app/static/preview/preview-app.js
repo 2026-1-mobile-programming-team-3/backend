@@ -4,6 +4,14 @@
 (function () {
   "use strict";
 
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   // ─── Auth ──────────────────────────────────────────────────────────────────
   const K_ACCESS = "sg_access_token";
   const K_REFRESH = "sg_refresh_token";
@@ -34,7 +42,7 @@
 
   // ─── API (fetch wrapper) ───────────────────────────────────────────────────
   const API = {
-    async call(method, path, body) {
+    async call(method, path, body, _retried = false) {
       const init = {
         method,
         headers: { "Content-Type": "application/json", ...Auth.headers() },
@@ -54,11 +62,11 @@
       const ms = performance.now() - t0;
 
       // 401 + refresh token → 1회 자동 갱신 후 재시도
-      if (res.status === 401 && Auth.getRefresh() && path !== "/api/v1/auth/refresh") {
+      if (res.status === 401 && !_retried && Auth.getRefresh() && path !== "/api/v1/auth/refresh") {
         const refreshed = await this.tryRefresh();
         if (refreshed) {
           DebugPanel.log({ method, path, status: 401, ms, note: "→ refresh & retry" });
-          return this.call(method, path, body);
+          return this.call(method, path, body, true);
         }
       }
 
@@ -174,7 +182,7 @@
       this.el.innerHTML = `
         <header>
           <strong>API 디버그</strong>
-          <button type="button" id="dbg-clear" title="기록 지우기">🧹</button>
+          <button type="button" id="dbg-clear" title="기록 지우기">↻</button>
           <button type="button" id="dbg-toggle" title="패널 토글">×</button>
         </header>
         <div class="dbg-token"></div>
@@ -195,7 +203,7 @@
       btn.id = "preview-debug-fab";
       btn.type = "button";
       btn.title = "API 디버그 열기";
-      btn.textContent = "🔍";
+      btn.textContent = "dbg";
       btn.addEventListener("click", () => this.show());
       document.body.appendChild(btn);
     },
@@ -227,16 +235,16 @@
       const ms = evt.ms != null ? `${evt.ms.toFixed(0)}ms` : "";
       row.innerHTML = `
         <div class="dbg-row-head" data-cls="${cls}">
-          <span class="status">${evt.status || "ERR"}</span>
-          <span class="method">${evt.method || "WS"}</span>
-          <span class="path">${evt.path}</span>
-          <span class="time">${ms}</span>
+          <span class="status">${escapeHtml(evt.status || "ERR")}</span>
+          <span class="method">${escapeHtml(evt.method || "WS")}</span>
+          <span class="path">${escapeHtml(evt.path)}</span>
+          <span class="time">${escapeHtml(ms)}</span>
         </div>
       `;
       if (evt.body !== undefined || evt.err) {
         const det = document.createElement("details");
         det.innerHTML = `<summary>본문</summary><pre>${
-          evt.err ?? JSON.stringify(evt.body, null, 2)
+          escapeHtml(evt.err ?? JSON.stringify(evt.body, null, 2))
         }</pre>`;
         row.appendChild(det);
       }
