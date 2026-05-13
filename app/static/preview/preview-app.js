@@ -1,0 +1,323 @@
+/* preview-app.js — Branch 2 (모바일 앱 미리보기) 공용 런타임
+   v2 design assets 와 함께 동작. 외부 의존 없음 (Vanilla ES2020).
+*/
+(function () {
+  "use strict";
+
+  // ─── Auth ──────────────────────────────────────────────────────────────────
+  const K_ACCESS = "sg_access_token";
+  const K_REFRESH = "sg_refresh_token";
+  const K_DEBUG = "sg_preview_debug";
+
+  const Auth = {
+    getAccess: () => localStorage.getItem(K_ACCESS) || "",
+    getRefresh: () => localStorage.getItem(K_REFRESH) || "",
+    headers() {
+      const tok = this.getAccess();
+      return tok ? { Authorization: `Bearer ${tok}` } : {};
+    },
+    set(access, refresh) {
+      if (access !== undefined) localStorage.setItem(K_ACCESS, access);
+      if (refresh !== undefined) localStorage.setItem(K_REFRESH, refresh);
+    },
+    clear() {
+      localStorage.removeItem(K_ACCESS);
+      localStorage.removeItem(K_REFRESH);
+    },
+    requireLogin() {
+      if (this.getAccess()) return true;
+      Toast.error("로그인이 필요해요. 2초 뒤 콘솔로 이동합니다.");
+      setTimeout(() => { window.location.href = "/"; }, 2000);
+      return false;
+    },
+  };
+
+  // ─── API (fetch wrapper) ───────────────────────────────────────────────────
+  const API = {
+    async call(method, path, body) {
+      const init = {
+        method,
+        headers: { "Content-Type": "application/json", ...Auth.headers() },
+      };
+      if (body !== undefined) init.body = JSON.stringify(body);
+
+      const t0 = performance.now();
+      let res, parsed, text;
+      try {
+        res = await fetch(path, init);
+        text = await res.text();
+        try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+      } catch (err) {
+        DebugPanel.log({ method, path, status: 0, ms: 0, err: err.message });
+        throw err;
+      }
+      const ms = performance.now() - t0;
+
+      // 401 + refresh token → 1회 자동 갱신 후 재시도
+      if (res.status === 401 && Auth.getRefresh() && path !== "/api/v1/auth/refresh") {
+        const refreshed = await this.tryRefresh();
+        if (refreshed) {
+          DebugPanel.log({ method, path, status: 401, ms, note: "→ refresh & retry" });
+          return this.call(method, path, body);
+        }
+      }
+
+      DebugPanel.log({ method, path, status: res.status, ms, body: parsed });
+      if (!res.ok) {
+        const detail = parsed?.detail || res.statusText;
+        const err = new Error(`${res.status}: ${detail}`);
+        err.status = res.status; err.body = parsed;
+        throw err;
+      }
+      return parsed;
+    },
+
+    async tryRefresh() {
+      const refresh = Auth.getRefresh();
+      if (!refresh) return false;
+      try {
+        const res = await fetch("/api/v1/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refresh }),
+        });
+        if (!res.ok) { Auth.clear(); return false; }
+        const data = await res.json();
+        Auth.set(data.access_token, data.refresh_token);
+        return true;
+      } catch { Auth.clear(); return false; }
+    },
+
+    get(path) { return this.call("GET", path); },
+    post(path, body) { return this.call("POST", path, body); },
+    patch(path, body) { return this.call("PATCH", path, body); },
+    put(path, body) { return this.call("PUT", path, body); },
+    delete(path) { return this.call("DELETE", path); },
+  };
+
+  // ─── Bind (data-bind 처리기) ───────────────────────────────────────────────
+  function getPath(obj, path) {
+    return path.split(".").reduce(
+      (acc, key) => (acc == null ? acc : acc[key]),
+      obj,
+    );
+  }
+
+  function fillTemplate(str, ctx) {
+    return str.replace(/\{([\w.]+)\}/g, (_m, k) => {
+      const v = getPath(ctx, k);
+      return v == null ? "" : String(v);
+    });
+  }
+
+  const Bind = {
+    apply(root, data) {
+      if (!root || !data) return;
+      // data-bind="path.to.value" — textContent
+      root.querySelectorAll("[data-bind]").forEach((el) => {
+        if (el.tagName === "TEMPLATE") return;
+        const path = el.getAttribute("data-bind");
+        const val = getPath(data, path);
+        if (val == null) return;
+        const attrSpec = el.getAttribute("data-bind-attr");
+        if (attrSpec) {
+          // "src" 또는 "href:/path/{id}/foo"
+          const colon = attrSpec.indexOf(":");
+          const attr = colon < 0 ? attrSpec : attrSpec.slice(0, colon);
+          const tmpl = colon < 0 ? null : attrSpec.slice(colon + 1);
+          el.setAttribute(attr, tmpl ? fillTemplate(tmpl, data) : val);
+        } else {
+          el.textContent = val;
+        }
+      });
+      // data-bind-show="path" — 값이 truthy면 표시, 아니면 hidden
+      root.querySelectorAll("[data-bind-show]").forEach((el) => {
+        const path = el.getAttribute("data-bind-show");
+        el.hidden = !getPath(data, path);
+      });
+      // data-bind-each="arrayPath" data-template="#tmpl-id"
+      root.querySelectorAll("[data-bind-each]").forEach((host) => {
+        const arrPath = host.getAttribute("data-bind-each");
+        const tmplSel = host.getAttribute("data-template");
+        const arr = getPath(data, arrPath);
+        if (!Array.isArray(arr) || !tmplSel) return;
+        const tmpl = document.querySelector(tmplSel);
+        if (!tmpl) return;
+        host.innerHTML = "";
+        for (const item of arr) {
+          const node = tmpl.content.cloneNode(true);
+          // 자식 요소에 대해 fragment-scoped bind 적용
+          Bind.apply(node, item);
+          // host와 item 컨텍스트 둘 다 채울 수 있도록 attr 템플릿도 처리
+          node.querySelectorAll("[data-bind-attr]").forEach((el) => {
+            const spec = el.getAttribute("data-bind-attr");
+            const colon = spec.indexOf(":");
+            if (colon < 0) return;
+            const attr = spec.slice(0, colon);
+            const tpl = spec.slice(colon + 1);
+            el.setAttribute(attr, fillTemplate(tpl, item));
+          });
+          host.appendChild(node);
+        }
+      });
+    },
+  };
+
+  // ─── DebugPanel ────────────────────────────────────────────────────────────
+  const DebugPanel = {
+    el: null, listEl: null, _mounted: false,
+    mount() {
+      if (this._mounted) return;
+      this._mounted = true;
+      this.el = document.createElement("aside");
+      this.el.id = "preview-debug-panel";
+      this.el.innerHTML = `
+        <header>
+          <strong>API 디버그</strong>
+          <button type="button" id="dbg-clear" title="기록 지우기">🧹</button>
+          <button type="button" id="dbg-toggle" title="패널 토글">×</button>
+        </header>
+        <div class="dbg-token"></div>
+        <div class="dbg-list"></div>
+      `;
+      document.body.appendChild(this.el);
+      this.listEl = this.el.querySelector(".dbg-list");
+      this._renderToken();
+      this.el.querySelector("#dbg-clear").addEventListener("click", () => { this.listEl.innerHTML = ""; });
+      this.el.querySelector("#dbg-toggle").addEventListener("click", () => this.hide());
+      // 토글 버튼 (패널 외부) — 닫혀 있을 때 다시 열기
+      this._installFloating();
+      // 초기 상태 복원
+      if (localStorage.getItem(K_DEBUG) === "off") this.hide(true);
+    },
+    _installFloating() {
+      const btn = document.createElement("button");
+      btn.id = "preview-debug-fab";
+      btn.type = "button";
+      btn.title = "API 디버그 열기";
+      btn.textContent = "🔍";
+      btn.addEventListener("click", () => this.show());
+      document.body.appendChild(btn);
+    },
+    show() {
+      this.el.classList.remove("hidden");
+      document.getElementById("preview-debug-fab")?.classList.add("hidden");
+      localStorage.setItem(K_DEBUG, "on");
+    },
+    hide(initial) {
+      this.el.classList.add("hidden");
+      document.getElementById("preview-debug-fab")?.classList.remove("hidden");
+      if (!initial) localStorage.setItem(K_DEBUG, "off");
+    },
+    toggle() { this.el.classList.contains("hidden") ? this.show() : this.hide(); },
+    _renderToken() {
+      const tok = Auth.getAccess();
+      const display = tok ? `••• ${tok.slice(-8)}` : "(none)";
+      this.el.querySelector(".dbg-token").textContent = `token: ${display}`;
+    },
+    log(evt) {
+      if (!this._mounted) return;
+      const row = document.createElement("div");
+      row.className = "dbg-row";
+      const cls =
+        evt.status === 0 ? "net" :
+        evt.status >= 200 && evt.status < 300 ? "ok" :
+        evt.status >= 400 ? "err" : "warn";
+      const time = new Date().toTimeString().slice(0, 8);
+      const ms = evt.ms != null ? `${evt.ms.toFixed(0)}ms` : "";
+      row.innerHTML = `
+        <div class="dbg-row-head" data-cls="${cls}">
+          <span class="status">${evt.status || "ERR"}</span>
+          <span class="method">${evt.method || "WS"}</span>
+          <span class="path">${evt.path}</span>
+          <span class="time">${ms}</span>
+        </div>
+      `;
+      if (evt.body !== undefined || evt.err) {
+        const det = document.createElement("details");
+        det.innerHTML = `<summary>본문</summary><pre>${
+          evt.err ?? JSON.stringify(evt.body, null, 2)
+        }</pre>`;
+        row.appendChild(det);
+      }
+      if (evt.note) {
+        const note = document.createElement("div");
+        note.className = "dbg-note"; note.textContent = evt.note;
+        row.appendChild(note);
+      }
+      this.listEl.prepend(row);
+      this._renderToken();
+    },
+  };
+
+  // ─── WebSocket ─────────────────────────────────────────────────────────────
+  const WS = {
+    ws: null, listeners: [],
+    connect(applicationId) {
+      const tok = Auth.getAccess();
+      if (!tok) { Toast.error("WS: 토큰 없음"); return; }
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      const url = `${proto}://${location.host}/api/v1/ws/applications/${applicationId}?token=${encodeURIComponent(tok)}`;
+      this.ws = new WebSocket(url);
+      this.ws.addEventListener("open", () => {
+        DebugPanel.log({ method: "WS", path: `/ws/applications/${applicationId}`, status: 101, note: "OPEN" });
+      });
+      this.ws.addEventListener("message", (e) => {
+        let payload; try { payload = JSON.parse(e.data); } catch { payload = e.data; }
+        DebugPanel.log({ method: "WS", path: "message", status: 200, body: payload });
+        this.listeners.forEach((fn) => { try { fn(payload); } catch (err) { console.error(err); } });
+      });
+      this.ws.addEventListener("close", (e) => {
+        DebugPanel.log({ method: "WS", path: "close", status: e.code, note: `close ${e.code}` });
+        this.ws = null;
+      });
+      this.ws.addEventListener("error", () => {
+        DebugPanel.log({ method: "WS", path: "error", status: 0, err: "WebSocket error" });
+      });
+    },
+    onMessage(fn) { this.listeners.push(fn); },
+    close() { this.ws?.close(); this.ws = null; this.listeners = []; },
+  };
+
+  // ─── Toast ─────────────────────────────────────────────────────────────────
+  const Toast = {
+    _stack: null,
+    _ensure() {
+      if (this._stack) return;
+      this._stack = document.createElement("div");
+      this._stack.id = "preview-toast-stack";
+      document.body.appendChild(this._stack);
+    },
+    _show(text, kind, ms = 2400) {
+      this._ensure();
+      const t = document.createElement("div");
+      t.className = `preview-toast ${kind}`;
+      t.textContent = text;
+      this._stack.appendChild(t);
+      requestAnimationFrame(() => t.classList.add("show"));
+      setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 220); }, ms);
+    },
+    ok(text) { this._show(text, "ok"); },
+    error(text) { this._show(text, "err"); },
+    info(text) { this._show(text, "info"); },
+  };
+
+  // ─── PreviewApp (페이지 부트스트랩 placeholder — 페이지별 task에서 추가) ─────
+  const PreviewApp = {
+    Auth, API, Bind, DebugPanel, WS, Toast,
+    bootHome: null,   // Task 4
+    bootMy: null,     // Task 5
+    bootMatch: null,  // Task 6
+    bootMap: null,    // Task 7
+    bootChat: null,   // Task 8
+  };
+
+  // 전역 노출
+  window.PreviewApp = PreviewApp;
+  window.Auth = Auth;
+  window.api = API;
+  window.Bind = Bind;
+  window.DebugPanel = DebugPanel;
+  window.Toast = Toast;
+  window.WS = WS;
+})();
