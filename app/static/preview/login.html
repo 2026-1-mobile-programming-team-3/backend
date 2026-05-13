@@ -58,13 +58,16 @@
     const phone = document.getElementById('phone').value.trim();
     const password = document.getElementById('password').value;
     const errEl = document.getElementById('errMsg');
+    const btn = e.submitter || e.target.querySelector('[type=submit]');
     errEl.textContent = '';
+    btn.disabled = true;
     try {
       await Auth.login(phone, password);
       const params = new URLSearchParams(location.search);
       location.href = params.get('redirect') || 'index.html';
     } catch (err) {
-      errEl.textContent = err.status === 401 ? '전화번호 또는 비밀번호가 올바르지 않습니다.' : err.message;
+      errEl.textContent = err.status === 401 ? '전화번호 또는 비밀번호가 올바르지 않습니다.' : '서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.';
+      btn.disabled = false;
     }
   });
 })();

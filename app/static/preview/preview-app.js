@@ -50,12 +50,12 @@
     logout() {
       API.post('/api/v1/auth/logout', {}).catch(() => {});
       this.clear();
-      window.location.href = '/preview/login.html';
+      window.location.href = 'login.html';
     },
     requireLogin() {
       if (this.getAccess()) return true;
       Toast.error("로그인이 필요해요. 로그인 화면으로 이동합니다.");
-      setTimeout(() => { window.location.href = "/preview/login.html"; }, 1500);
+      setTimeout(() => { window.location.href = "login.html"; }, 1500);
       return false;
     },
   };
@@ -214,7 +214,7 @@
       this._renderToken();
       this.el.querySelector("#dbg-relogin").addEventListener("click", () => {
         Auth.clear();
-        window.location.href = "/preview/login.html";
+        window.location.href = "login.html";
       });
       this.el.querySelector("#dbg-clear").addEventListener("click", () => { this.listEl.innerHTML = ""; });
       this.el.querySelector("#dbg-toggle").addEventListener("click", () => this.hide());

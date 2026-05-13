@@ -38,7 +38,7 @@
   <form class="auth-form" id="signupForm">
     <input class="auth-field" type="text" id="nickname" placeholder="닉네임" required />
     <input class="auth-field" type="tel" id="phone" placeholder="전화번호" autocomplete="tel" required />
-    <input class="auth-field" type="password" id="password" placeholder="비밀번호 (8자 이상)" autocomplete="new-password" required />
+    <input class="auth-field" type="password" id="password" placeholder="비밀번호 (8자 이상)" autocomplete="new-password" minlength="8" required />
     <div class="auth-err" id="errMsg"></div>
     <button class="auth-btn" type="submit">가입하기</button>
   </form>
@@ -55,12 +55,18 @@
     const phone = document.getElementById('phone').value.trim();
     const password = document.getElementById('password').value;
     const errEl = document.getElementById('errMsg');
+    const btn = e.submitter || e.target.querySelector('[type=submit]');
     errEl.textContent = '';
+    btn.disabled = true;
     try {
       await Auth.signup(phone, password, nickname);
       location.href = 'index.html';
     } catch (err) {
-      errEl.textContent = err.body?.detail || err.message;
+      const detail = err.body?.detail;
+      errEl.textContent = Array.isArray(detail)
+        ? '입력 정보를 확인해 주세요.'
+        : (detail || err.message);
+      btn.disabled = false;
     }
   });
 })();
