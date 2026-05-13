@@ -37,6 +37,21 @@
       sessionStorage.removeItem(K_ACCESS);
       sessionStorage.removeItem(K_REFRESH);
     },
+    async login(phone, password) {
+      const data = await API.post('/api/v1/auth/login', { phone, password });
+      this.set(data.access_token, data.refresh_token);
+      return data;
+    },
+    async signup(phone, password, nickname) {
+      const data = await API.post('/api/v1/auth/signup', { phone, password, nickname });
+      this.set(data.access_token, data.refresh_token);
+      return data;
+    },
+    logout() {
+      API.post('/api/v1/auth/logout', {}).catch(() => {});
+      this.clear();
+      window.location.href = '/preview/login.html';
+    },
     requireLogin() {
       if (this.getAccess()) return true;
       Toast.error("로그인이 필요해요. 로그인 화면으로 이동합니다.");
