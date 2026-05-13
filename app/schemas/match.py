@@ -188,3 +188,53 @@ class VolunteerStatsResponse(BaseModel):
     total_count: int
     total_hours: float
     avg_rating: float | None
+
+
+# ─── 3.9 PATCH /matches/{match_id}/status ────────────────────────────────────
+
+
+class MatchStatusUpdateRequest(BaseModel):
+    status: Literal["PROGRESS", "DONE"]
+
+
+class MatchStatusUpdateResponse(BaseModel):
+    match_id: int
+    status: MatchStatus
+    updated_at: datetime
+
+
+# ─── 3.13 POST /matches/{match_id}/review ────────────────────────────────────
+
+
+class MatchReviewCreateRequest(BaseModel):
+    proof_image_urls: list[str] | None = Field(default=None, max_length=10)
+    rating: int = Field(ge=1, le=5)
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class MatchReviewCreatedResponse(BaseModel):
+    review_id: int
+    match_id: int
+    rating: int
+    created_at: datetime
+
+
+# ─── 3.15 GET /users/me/matches ──────────────────────────────────────────────
+
+
+class MyMatchListItem(MatchListItem):
+    # 공통
+    applications_count: int | None = None
+    # role=author 시
+    matched_applicant_nickname: str | None = None
+    unread_message_count: int = 0
+    # role=applicant 시
+    my_application_status: ApplicationStatus | None = None
+    received_rating: int | None = None
+
+
+class MyMatchListResponse(BaseModel):
+    items: list[MyMatchListItem]
+    total: int
+    page: int
+    size: int

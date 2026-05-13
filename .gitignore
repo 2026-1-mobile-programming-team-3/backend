@@ -56,3 +56,7 @@ superpowers/
 # 주의: Alembic 마이그레이션 파일(`alembic/versions/*.py`)은 커밋 대상.
 
 docs_design/
+gagae-design/
+
+*.pdf
+CLAUDE.md

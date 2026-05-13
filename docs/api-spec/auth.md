@@ -277,12 +277,16 @@ https://{host}/api/v1
       "name": "초코",
       "species": "DOG",
       "breed": "말티즈",
+      "age": 3,
+      "gender": "MALE",
       "is_neutered": false
     }
   ],
   "created_at": "2026-04-15T12:00:00Z"
 }
 ```
+
+> **대표 펫**: 마이페이지의 "대표 펫 1마리" 카드는 `pets[0]`(가장 먼저 등록된 펫)을 사용한다. 별도 지정 API는 없다.
 
 **Errors**
 
@@ -387,6 +391,7 @@ https://{host}/api/v1
 | age | integer | N | 나이 |
 | weight_kg | float | N | 체중 (kg) |
 | is_neutered | boolean | Y | 중성화 여부 |
+| gender | string | N | `MALE` / `FEMALE` / `UNKNOWN` (기본 `UNKNOWN`) |
 | photo_url | string | N | 사진 URL |
 
 **Response — 201 Created**
@@ -399,6 +404,7 @@ https://{host}/api/v1
   "age": 3,
   "weight_kg": 4.2,
   "is_neutered": false,
+  "gender": "MALE",
   "photo_url": "https://storage.example.com/pets/choco.jpg",
   "created_at": "2026-04-15T12:00:00Z"
 }
@@ -421,8 +427,13 @@ https://{host}/api/v1
 
 | 필드 | 타입 | 필수 |
 | --- | --- | --- |
-| is_neutered | boolean | N |
+| name | string | N |
+| breed | string | N |
+| age | integer | N |
 | weight_kg | float | N |
+| is_neutered | boolean | N |
+| gender | string | N (`MALE`/`FEMALE`/`UNKNOWN`) |
+| photo_url | string | N |
 
 **Response — 200 OK**
 ```json
@@ -434,6 +445,7 @@ https://{host}/api/v1
   "age": 3,
   "weight_kg": 4.5,
   "is_neutered": true,
+  "gender": "MALE",
   "photo_url": "https://storage.example.com/pets/choco.jpg",
   "updated_at": "2026-04-15T14:00:00Z"
 }
@@ -582,18 +594,174 @@ https://{host}/api/v1
 
 ---
 
+### 1.15 활동 통계 + 봉사 뱃지 — `GET /users/me/activity-stats` [T1]
+
+**인증 필요**
+
+마이페이지의 ③활동 통계(내 요청 수·봉사 참여 수·즐겨찾기 수)와 ⑥봉사 뱃지 등급/진행률을 1회 호출로 반환한다.
+
+**Response — 200 OK**
+```json
+{
+  "my_match_count": 3,
+  "volunteer_completed_count": 2,
+  "favorite_count": 5,
+  "badge": {
+    "tier": "SEED",
+    "count": 2,
+    "next_tier": "FLOWER",
+    "next_threshold": 3,
+    "progress_pct": 50
+  }
+}
+```
+
+- `my_match_count`: 본인이 작성한 매칭 중 `deleted_at IS NULL` 총 건수 (상태 무관).
+- `volunteer_completed_count`: 본인이 ACCEPTED 봉사자였고 매칭이 `DONE` 인 건수.
+- `favorite_count`: 본인 즐겨찾기 중 매장이 `APPROVED` 이고 살아있는 것의 수.
+- `badge.tier` enum: `NONE` / `SEED` / `FLOWER` / `FRUIT` / `TREE`. 임계값 1·3·8·15.
+- `badge.progress_pct`: 현 등급 시작 ~ 다음 등급 임계 사이 진행률(0~100). 최고 등급(`TREE`)이면 100.
+
+**Errors**
+
+| 상태 코드 | 설명 |
+| --- | --- |
+| 401 | 인증 실패 |
+
+---
+
+### 1.16 알림 설정 조회 — `GET /users/me/notification-settings` [T1]
+
+**인증 필요**
+
+카테고리별 push on/off 상태. 행이 없는 카테고리는 기본 `true` 로 응답한다.
+
+**Response — 200 OK**
+```json
+{
+  "settings": {
+    "VOLUNTEER": true,
+    "MATCH": true,
+    "REVIEW": false,
+    "NEWS": true,
+    "POLICY": true,
+    "SYSTEM": true
+  }
+}
+```
+
+---
+
+### 1.17 알림 설정 변경 — `PUT /users/me/notification-settings` [T1]
+
+**인증 필요**
+
+**Request Body** (포함된 카테고리만 갱신 — upsert)
+
+```json
+{
+  "settings": {
+    "REVIEW": false
+  }
+}
+```
+
+**Response — 200 OK** (1.16 과 동일 — 전체 카테고리 현 상태)
+
+> 카테고리 enum 은 `VOLUNTEER` / `MATCH` / `REVIEW` / `NEWS` / `POLICY` / `SYSTEM`.
+
+---
+
+### 1.18 즐겨찾기 매장 등록 — `POST /users/me/favorites/stores` [T1]
+
+**인증 필요**
+
+**Request Body**
+
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| store_id | integer | Y | 즐겨찾기에 추가할 매장 ID |
+
+**Response — 201 Created**
+```json
+{ "favorite_id": 1, "store_id": 101, "created_at": "2026-05-06T12:00:00Z" }
+```
+
+**Errors**
+
+| 상태 코드 | 설명 |
+| --- | --- |
+| 401 | 인증 실패 |
+| 404 | 매장 없음 또는 미승인 |
+| 409 | 이미 즐겨찾기에 등록됨 |
+
+---
+
+### 1.19 즐겨찾기 매장 해제 — `DELETE /users/me/favorites/stores/{store_id}` [T1]
+
+**인증 필요** / **Path**: `store_id`
+
+**Response — 204 No Content**
+
+**Errors**: 401 / 404(본인 즐겨찾기에 없음).
+
+---
+
+### 1.20 즐겨찾기 매장 목록 조회 — `GET /users/me/favorites/stores` [T1]
+
+**인증 필요**
+
+**Query Parameters**: `page`(기본 1), `size`(기본 20, 1~100).
+
+**Response — 200 OK**
+```json
+{
+  "items": [
+    {
+      "favorite_id": 1,
+      "store_id": 101,
+      "name": "배곧 댕댕카페",
+      "category": "CAFE",
+      "thumbnail_url": "https://storage.example.com/stores/101.jpg",
+      "rating_avg": 4.5,
+      "created_at": "2026-05-06T12:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "size": 20
+}
+```
+
+> 매장이 soft delete 됐거나 미승인(`PENDING/REJECTED`)으로 전환된 항목은 응답에서 자동 제외된다.
+
+---
+
+### 1.21 내 매칭 목록 조회 — `GET /users/me/matches` [T0]
+
+§3.15 (`docs/api-spec/match.md`) 참고. 마이페이지 ④/⑤ 카드 데이터원.
+응답 항목은 기본 매칭 정보 + 다음 enrichment 를 포함한다.
+
+- role=author: `matched_applicant_nickname`(ACCEPTED 봉사자 닉네임, 없으면 null), `unread_message_count`(작성자 시점 미읽음 메시지 합산), `applications_count`(현 신청자 총 수).
+- role=applicant: `my_application_status`(PENDING/ACCEPTED/REJECTED), `received_rating`(본인이 reviewee로 받은 평점 1~5, 없으면 null).
+
+---
+
 ## 부록 A. 도메인 enum 정의
 
 | Enum | 값 |
 | --- | --- |
 | User.role | `USER`, `VOLUNTEER`, `ADMIN` |
 | Pet.species | `DOG`, `CAT`, `OTHER` |
+| Pet.gender | `MALE`, `FEMALE`, `UNKNOWN` |
+| VolunteerBadgeTier | `NONE`, `SEED`, `FLOWER`, `FRUIT`, `TREE` |
 | Notification.category | `VOLUNTEER`, `MATCH`, `REVIEW`, `NEWS`, `POLICY`, `SYSTEM` |
 | Match.status | `WAITING`, `MATCHING`, `PROGRESS`, `DONE` |
 | VolunteerRequest.status | `PENDING`, `APPROVED`, `REJECTED` |
 | Store.category | `CAFE`, `RESTAURANT`, `PARK`, `VET`, `GROOMING` |
 | Store.status | `PENDING`, `APPROVED`, `REJECTED` |
 | Application.status | `PENDING`, `ACCEPTED`, `REJECTED` |
+| Report.type | `USER`, `CHAT` |
 
 ## 부록 B. 미확정 항목 (TBD)
 

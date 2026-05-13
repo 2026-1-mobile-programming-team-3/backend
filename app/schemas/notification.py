@@ -52,3 +52,19 @@ class DeviceRegisteredResponse(BaseModel):
 class MarkAllReadResponse(BaseModel):
     updated_count: int
     message: str
+
+
+# ─── 마이페이지: 카테고리별 push 알림 설정 ────────────────────────────────────
+
+
+class NotificationSettingsResponse(BaseModel):
+    """행이 없는 카테고리는 기본 ON(true)으로 반환."""
+
+    settings: dict[NotificationCategory, bool]
+
+
+class NotificationSettingsUpdateRequest(BaseModel):
+    settings: dict[NotificationCategory, bool] = Field(
+        ...,
+        description="upsert. 포함된 카테고리만 갱신. 일부만 보내도 됨.",
+    )

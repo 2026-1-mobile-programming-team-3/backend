@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import PetSpecies, UserRole
+from app.models.enums import PetGender, PetSpecies, UserRole
 
 
 class User(Base):
@@ -108,6 +108,12 @@ class Pet(Base):
     weight_kg: Mapped[Optional[Decimal]] = mapped_column(sa.Numeric(5, 2))
     is_neutered: Mapped[bool] = mapped_column(
         sa.Boolean, nullable=False, default=False, server_default=sa.text("FALSE")
+    )
+    gender: Mapped[PetGender] = mapped_column(
+        sa.Enum(PetGender, name="pet_gender"),
+        nullable=False,
+        default=PetGender.UNKNOWN,
+        server_default=sa.text("'UNKNOWN'"),
     )
     photo_url: Mapped[Optional[str]] = mapped_column(sa.Text)
     created_at: Mapped[datetime] = mapped_column(

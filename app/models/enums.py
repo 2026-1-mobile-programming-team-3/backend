@@ -13,6 +13,20 @@ class PetSpecies(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class PetGender(str, enum.Enum):
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+    UNKNOWN = "UNKNOWN"
+
+
+class VolunteerBadgeTier(str, enum.Enum):
+    NONE = "NONE"
+    SEED = "SEED"
+    FLOWER = "FLOWER"
+    FRUIT = "FRUIT"
+    TREE = "TREE"
+
+
 class NotificationCategory(str, enum.Enum):
     VOLUNTEER = "VOLUNTEER"
     MATCH = "MATCH"
@@ -51,3 +65,8 @@ class StoreStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+
+
+class ReportType(str, enum.Enum):
+    USER = "USER"
+    CHAT = "CHAT"

@@ -83,8 +83,8 @@ class MatchApplication(Base):
     )
 
     match: Mapped["Match"] = relationship(back_populates="applications")
-    chat_messages: Mapped[list["ChatMessage"]] = relationship(
-        back_populates="application", cascade="all, delete-orphan"
+    chat_room: Mapped[Optional["ChatRoom"]] = relationship(
+        back_populates="application", cascade="all, delete-orphan", uselist=False
     )
 
     __table_args__ = (
@@ -100,12 +100,34 @@ class MatchApplication(Base):
     )
 
 
+class ChatRoom(Base):
+    __tablename__ = "chat_rooms"
+
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
+    application_id: Mapped[int] = mapped_column(
+        sa.BigInteger,
+        sa.ForeignKey("match_applications.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+
+    application: Mapped["MatchApplication"] = relationship(back_populates="chat_room")
+    messages: Mapped[list["ChatMessage"]] = relationship(
+        back_populates="room", cascade="all, delete-orphan"
+    )
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
     id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
-    application_id: Mapped[int] = mapped_column(
-        sa.BigInteger, sa.ForeignKey("match_applications.id", ondelete="CASCADE"), nullable=False
+    chat_room_id: Mapped[int] = mapped_column(
+        sa.BigInteger,
+        sa.ForeignKey("chat_rooms.id", ondelete="CASCADE"),
+        nullable=False,
     )
     sender_id: Mapped[Optional[int]] = mapped_column(
         sa.BigInteger, sa.ForeignKey("users.id", ondelete="SET NULL")
@@ -116,12 +138,12 @@ class ChatMessage(Base):
         sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
     )
 
-    application: Mapped["MatchApplication"] = relationship(back_populates="chat_messages")
+    room: Mapped["ChatRoom"] = relationship(back_populates="messages")
 
     __table_args__ = (
         sa.Index(
-            "idx_chat_messages_application_created",
-            "application_id",
+            "idx_chat_messages_room_created",
+            "chat_room_id",
             sa.text("created_at DESC"),
         ),
     )

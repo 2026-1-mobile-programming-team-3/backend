@@ -319,15 +319,8 @@
 
     <!-- 반려동물 -->
     <div class="section-label anim-fade-slide-up delay-2">내 반려동물</div>
-    <template id="tmpl-pet">
-      <div class="pet-v-card">
-        <div class="pet-v-icon"><i class="ph ph-paw-print"></i></div>
-        <div class="pet-v-name" data-bind="name">—</div>
-        <div class="pet-v-species" data-bind="species">—</div>
-      </div>
-    </template>
-    <div class="pets-scroll anim-fade-slide-up delay-2" data-bind-each="pets" data-template="#tmpl-pet">
-      <button class="pet-v-add" onclick="location.href='pet-form.html'">
+    <div class="pets-scroll anim-fade-slide-up delay-2" id="pets-scroll">
+      <button class="pet-v-add" id="btn-add-pet" onclick="location.href='pet-form.html'">
         <i class="ph ph-plus"></i>
         <span>반려동물<br>추가</span>
       </button>

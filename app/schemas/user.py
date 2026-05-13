@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.security import validate_password_strength, validate_phone
-from app.models.enums import PetSpecies, UserRole
+from app.models.enums import PetGender, PetSpecies, UserRole, VolunteerBadgeTier
 
 
 class PetSummary(BaseModel):
@@ -13,6 +13,8 @@ class PetSummary(BaseModel):
     name: str
     species: PetSpecies
     breed: str | None
+    age: int | None
+    gender: PetGender
     is_neutered: bool
 
 
@@ -96,3 +98,24 @@ class VolunteerRequestResponse(BaseModel):
     message: str
     status: str
     created_at: datetime
+
+
+# ─── 마이페이지: 활동 통계 + 봉사 뱃지 ────────────────────────────────────────
+
+
+class VolunteerBadgeInfo(BaseModel):
+    """봉사 뱃지 등급 정보.
+    임계값: SEED 1 / FLOWER 3 / FRUIT 8 / TREE 15."""
+
+    tier: VolunteerBadgeTier
+    count: int
+    next_tier: VolunteerBadgeTier | None
+    next_threshold: int | None
+    progress_pct: int  # 0~100 (현 등급 시작 ~ 다음 등급 임계)
+
+
+class ActivityStatsResponse(BaseModel):
+    my_match_count: int
+    volunteer_completed_count: int
+    favorite_count: int
+    badge: VolunteerBadgeInfo

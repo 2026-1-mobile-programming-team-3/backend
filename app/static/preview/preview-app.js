@@ -37,8 +37,8 @@
       sessionStorage.removeItem(K_ACCESS);
       sessionStorage.removeItem(K_REFRESH);
     },
-    async login(phone, password) {
-      const data = await API.post('/api/v1/auth/login', { phone, password });
+    async login(email, password) {
+      const data = await API.post('/api/v1/auth/login', { email, password });
       this.set(data.access_token, data.refresh_token);
       return data;
     },
@@ -441,6 +441,42 @@
   PreviewApp.bootMy = async function () {
     if (!Auth.requireLogin()) return;
     DebugPanel.mount();
+
+    // 반려동물 카드 렌더링 (추가 버튼은 HTML 정적으로 유지, 카드는 버튼 앞에 삽입)
+    function renderPets(pets) {
+      const scroll = document.getElementById('pets-scroll') || document.querySelector('.pets-scroll');
+      if (!scroll) return;
+
+      // 기존 동적 카드(.pet-v-card)만 제거 (추가 버튼은 유지)
+      scroll.querySelectorAll('.pet-v-card').forEach((c) => c.remove());
+
+      const addBtn = scroll.querySelector('.pet-v-add');
+
+      (pets || []).forEach((p) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'pet-v-card';
+        const speciesCls = p.species === 'CAT' ? 'cat' : 'dog';
+        const speciesIcon = p.species === 'CAT' ? 'cat' : 'dog';
+        const speciesLabel = p.species === 'CAT' ? '고양이' : '강아지';
+        card.innerHTML = `
+          <div class="pet-v-icon ${speciesCls}"><i class="ph ph-${speciesIcon}"></i></div>
+          <div class="pet-v-name"></div>
+          <div class="pet-v-info"></div>`;
+        card.querySelector('.pet-v-name').textContent = p.name || '—';
+        card.querySelector('.pet-v-info').textContent = speciesLabel + (p.breed ? ` · ${p.breed}` : '');
+        card.addEventListener('click', () => {
+          location.href = `pet-form.html?pet_id=${p.id}`;
+        });
+        // 추가 버튼이 있으면 그 앞에, 없으면 맨 뒤에 삽입
+        if (addBtn) {
+          scroll.insertBefore(card, addBtn);
+        } else {
+          scroll.appendChild(card);
+        }
+      });
+    }
+
     try {
       const [me, stats, author_matches, applicant_matches] = await Promise.all([
         API.get("/api/v1/users/me"),
@@ -448,7 +484,10 @@
         API.get("/api/v1/users/me/matches?role=author&size=3"),
         API.get("/api/v1/users/me/matches?role=applicant&size=3"),
       ]);
-      const combined = { ...me, ...stats, author_matches, applicant_matches };
+
+      // pets는 수동 렌더링 후 combined에서 제거하여 Bind.apply가 덮어쓰지 않도록 함
+      renderPets(me.pets);
+      const combined = { ...me, pets: undefined, ...stats, author_matches, applicant_matches };
       Bind.apply(document, combined);
     } catch (err) {
       Toast.error(`내 정보 로딩 실패: ${err.message}`);
@@ -609,13 +648,13 @@
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'pet-v-card';
-        card.dataset.petId = p.pet_id;
+        card.dataset.petId = p.id;
         card.innerHTML = `<div class="pet-v-icon ${p.species === 'CAT' ? 'cat' : 'dog'}"><i class="ph ph-${p.species === 'CAT' ? 'cat' : 'dog'}"></i></div><div class="pet-v-name"></div>`;
         card.querySelector('.pet-v-name').textContent = p.name;
         card.addEventListener('click', () => {
           petGrid.querySelectorAll('.pet-v-card').forEach(c => c.classList.remove('selected'));
           card.classList.add('selected');
-          state.petId = p.pet_id;
+          state.petId = p.id;
         });
         petGrid.appendChild(card);
       });
@@ -705,16 +744,24 @@
       me = await API.get("/api/v1/users/me");
     } catch (err) { Toast.error(`내 정보 실패: ${err.message}`); return; }
 
-    if (!appId || !matchId) {
-      // fallback: 최근 본인 application
+    if (!appId) {
       try {
-        const mine = await API.get("/api/v1/users/me/matches?role=applicant&size=1");
-        const first = mine.items?.[0];
-        if (first && first.my_application_status !== "REJECTED") {
-          matchId = first.match_id;
-          const list = await API.get(`/api/v1/matches/${matchId}/applications`);
-          const own = list.items?.find((a) => a.applicant?.applicant_id === me.id);
-          appId = own?.application_id;
+        if (!matchId) {
+          const mine = await API.get("/api/v1/users/me/matches?role=applicant&size=1");
+          const first = mine.items?.[0];
+          if (first && first.my_application_status !== "REJECTED") {
+            matchId = first.match_id;
+          }
+        }
+        if (matchId) {
+          const savedAppId = localStorage.getItem(`sg_app_${matchId}`);
+          if (savedAppId) {
+            appId = parseInt(savedAppId, 10);
+          } else {
+            const list = await API.get(`/api/v1/matches/${matchId}/applications`);
+            const own = list.items?.find((a) => a.applicant?.applicant_id === me.id);
+            appId = own?.application_id;
+          }
         }
       } catch { /* fallback 실패는 무시 */ }
     }
@@ -961,6 +1008,10 @@
           node.querySelector('.app-status').textContent = app.status;
           const acceptBtn = node.querySelector('.btn-accept');
           const rejectBtn = node.querySelector('.btn-reject');
+          const chatBtn = node.querySelector('.btn-chat');
+          chatBtn?.addEventListener('click', () => {
+            location.href = `chat.html?match_id=${matchId}&application_id=${app.application_id}`;
+          });
           acceptBtn?.addEventListener('click', async () => {
             try {
               await API.patch(`/api/v1/matches/${matchId}/applications/${app.application_id}`, { action: 'ACCEPT' });
@@ -982,20 +1033,65 @@
     }
 
     const applyBtn = document.getElementById('btn-apply');
+    const chatBtn = document.getElementById('btn-chat');
     if (applyBtn) {
-      if (!isOwner && detail.status === 'WAITING') {
-        applyBtn.hidden = false;
-        applyBtn.addEventListener('click', async () => {
-          applyBtn.disabled = true;
-          try {
-            await API.post(`/api/v1/matches/${matchId}/apply`, { message: '' });
-            Toast.ok('봉사 신청이 완료되었습니다.');
-            applyBtn.textContent = '신청 완료';
-          } catch (err) {
-            Toast.error(err.message);
-            applyBtn.disabled = false;
+      if (!isOwner) {
+        let myAppStatus = null;
+        try {
+          const myMatches = await API.get('/api/v1/users/me/matches?role=applicant&size=50');
+          const found = myMatches.items?.find(m => m.match_id === matchId);
+          if (found) {
+            myAppStatus = found.my_application_status;
           }
-        });
+        } catch (e) {}
+
+        if (myAppStatus) {
+          applyBtn.hidden = false;
+          if (myAppStatus === 'REJECTED') {
+            applyBtn.textContent = '거절됨';
+            applyBtn.disabled = true;
+          } else {
+            // PENDING or ACCEPTED
+            applyBtn.textContent = myAppStatus === 'ACCEPTED' ? '매칭 수락됨' : '신청 완료';
+            applyBtn.disabled = true;
+            if (chatBtn) {
+              chatBtn.hidden = false;
+              chatBtn.addEventListener('click', () => {
+                const savedAppId = localStorage.getItem(`sg_app_${matchId}`);
+                const qs = savedAppId ? `?match_id=${matchId}&application_id=${savedAppId}` : `?match_id=${matchId}`;
+                location.href = `chat.html${qs}`;
+              });
+            }
+          }
+        } else if (detail.status === 'WAITING') {
+          applyBtn.hidden = false;
+          applyBtn.addEventListener('click', async () => {
+            applyBtn.disabled = true;
+            try {
+              const res = await API.post(`/api/v1/matches/${matchId}/applications`, { message: '' });
+              if (res.application_id) {
+                localStorage.setItem(`sg_app_${matchId}`, res.application_id);
+              }
+              Toast.ok('봉사 신청이 완료되었습니다.');
+              applyBtn.textContent = '신청 완료';
+              
+              // 신청 성공 시 바로 채팅 버튼 띄우기
+              if (chatBtn) {
+                chatBtn.hidden = false;
+                chatBtn.addEventListener('click', () => {
+                  const savedAppId = localStorage.getItem(`sg_app_${matchId}`);
+                  const qs = savedAppId ? `?match_id=${matchId}&application_id=${savedAppId}` : `?match_id=${matchId}`;
+                  location.href = `chat.html${qs}`;
+                });
+              }
+            } catch (err) {
+              Toast.error(err.message);
+              applyBtn.disabled = false;
+            }
+          });
+        } else {
+          applyBtn.hidden = true;
+        }
       } else {
         applyBtn.hidden = true;
       }

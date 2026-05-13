@@ -7,7 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud import block as block_crud
 from app.crud import match as match_crud
 from app.crud import pet as pet_crud
-from app.models.enums import ApplicationStatus, MatchStatus
+from app.models.enums import (
+    ApplicationStatus,
+    MatchStatus,
+    NotificationCategory,
+)
 from app.models.user import User
 from app.schemas.auth import MessageResponse
 from app.schemas.match import (
@@ -25,11 +29,18 @@ from app.schemas.match import (
     MatchListItem,
     MatchListResponse,
     MatchPetSummary,
+    MatchReviewCreatedResponse,
+    MatchReviewCreateRequest,
+    MatchStatusUpdateRequest,
+    MatchStatusUpdateResponse,
     MatchUpdateRequest,
+    MyMatchListItem,
+    MyMatchListResponse,
     VolunteerLocationItem,
     VolunteerLocationListResponse,
     VolunteerStatsResponse,
 )
+from app.services import notification as notification_service
 
 _DELETED_USER_NICKNAME = "(탈퇴한 사용자)"
 
@@ -222,6 +233,17 @@ async def create_application(
             detail="이미 신청한 매칭입니다.",
         )
 
+    # 매칭 작성자에게 신청 도착 알림.
+    await notification_service.enqueue(
+        db,
+        user_id=match.author_id,
+        category=NotificationCategory.VOLUNTEER,
+        title="새 봉사 신청이 도착했습니다",
+        body=f"'{match.title}'에 봉사 신청이 들어왔습니다.",
+        link=f"/matches/{match.id}/applications",
+    )
+    await db.commit()
+
     return ApplicationCreatedResponse(
         application_id=application.id,
         match_id=application.match_id,
@@ -249,16 +271,15 @@ async def list_applications(
             detail="해당 매칭 요청을 찾을 수 없습니다.",
         )
     if match.author_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="작성자만 신청자 목록을 볼 수 있습니다.",
+        rows, total = await match_crud.list_applications_with_applicants(
+            db, match_id, page=page, size=size, applicant_id=current_user.id
         )
-    # 작성자가 차단한 사용자의 신청은 노출하지 않는다 (가시성 정책 일관).
-    blocked_ids = await block_crud.list_blocked_ids(db, current_user.id)
-
-    rows, total = await match_crud.list_applications_with_applicants(
-        db, match_id, page=page, size=size, exclude_applicant_ids=blocked_ids or None
-    )
+    else:
+        # 작성자가 차단한 사용자의 신청은 노출하지 않는다 (가시성 정책 일관).
+        blocked_ids = await block_crud.list_blocked_ids(db, current_user.id)
+        rows, total = await match_crud.list_applications_with_applicants(
+            db, match_id, page=page, size=size, exclude_applicant_ids=blocked_ids or None
+        )
     items = [
         ApplicationListItem(
             application_id=app.id,
@@ -320,8 +341,24 @@ async def respond_application(
         await match_crud.accept_application(
             db, match=match, application=application
         )
+        await notification_service.enqueue(
+            db,
+            user_id=application.applicant_id,
+            category=NotificationCategory.VOLUNTEER,
+            title="봉사 신청이 수락되었습니다",
+            body=f"'{match.title}' 매칭이 진행됩니다.",
+            link=f"/matches/{match.id}",
+        )
     else:
         await match_crud.reject_application(db, application)
+        await notification_service.enqueue(
+            db,
+            user_id=application.applicant_id,
+            category=NotificationCategory.VOLUNTEER,
+            title="봉사 신청이 거절되었습니다",
+            body=f"'{match.title}' 매칭의 신청이 거절되었습니다.",
+            link=f"/matches/{match.id}",
+        )
 
     await db.commit()
     await db.refresh(application)
@@ -431,3 +468,240 @@ async def get_volunteer_stats(
         total_hours=0.0,
         avg_rating=avg_rating,
     )
+
+
+# ─── 3.9 PATCH /matches/{match_id}/status ────────────────────────────────────
+
+
+async def update_match_status(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    match_id: int,
+    data: MatchStatusUpdateRequest,
+) -> MatchStatusUpdateResponse:
+    match = await match_crud.get_match_active(db, match_id, for_update=True)
+    if match is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="해당 매칭 요청을 찾을 수 없습니다.",
+        )
+    if match.author_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="작성자만 상태를 변경할 수 있습니다.",
+        )
+
+    target = MatchStatus(data.status)
+
+    if target == MatchStatus.PROGRESS:
+        if match.status == MatchStatus.PROGRESS:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="이미 진행 중인 매칭입니다.",
+            )
+        if match.status == MatchStatus.DONE:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="이미 완료된 매칭입니다.",
+            )
+        has_accepted = await match_crud.has_accepted_application(db, match.id)
+        if not has_accepted:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="수락된 신청이 있어야 진행 상태로 전이할 수 있습니다.",
+            )
+        await match_crud.set_match_status(db, match, MatchStatus.PROGRESS)
+    elif target == MatchStatus.DONE:
+        if match.status != MatchStatus.PROGRESS:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="진행 중인 매칭만 완료 처리할 수 있습니다.",
+            )
+        await match_crud.set_match_status(db, match, MatchStatus.DONE)
+        applicant_id = await match_crud.get_accepted_applicant_id(db, match.id)
+        if applicant_id is not None:
+            await notification_service.enqueue(
+                db,
+                user_id=applicant_id,
+                category=NotificationCategory.MATCH,
+                title="매칭이 완료되었습니다",
+                body=f"'{match.title}' 매칭이 완료 처리되었습니다.",
+                link=f"/matches/{match.id}",
+            )
+
+    await db.commit()
+    await db.refresh(match)
+    return MatchStatusUpdateResponse(
+        match_id=match.id,
+        status=match.status,
+        updated_at=match.updated_at,
+    )
+
+
+# ─── 3.13 POST /matches/{match_id}/review ────────────────────────────────────
+
+
+async def create_review(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    match_id: int,
+    data: MatchReviewCreateRequest,
+) -> MatchReviewCreatedResponse:
+    match = await match_crud.get_match_active(db, match_id)
+    if match is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="해당 매칭 요청을 찾을 수 없습니다.",
+        )
+    if match.status != MatchStatus.DONE:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="완료된 매칭에서만 후기를 작성할 수 있습니다.",
+        )
+
+    accepted_applicant_id = await match_crud.get_accepted_applicant_id(db, match.id)
+    is_author = current_user.id == match.author_id
+    is_applicant = (
+        accepted_applicant_id is not None
+        and current_user.id == accepted_applicant_id
+    )
+    if not (is_author or is_applicant):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="매칭 참여자만 후기를 작성할 수 있습니다.",
+        )
+
+    if is_author:
+        reviewee_id = accepted_applicant_id
+    else:
+        reviewee_id = match.author_id
+
+    if reviewee_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="후기 대상자를 확정할 수 없습니다.",
+        )
+
+    try:
+        review = await match_crud.create_review(
+            db,
+            match_id=match.id,
+            reviewer_id=current_user.id,
+            reviewee_id=reviewee_id,
+            rating=data.rating,
+            content=data.content,
+            proof_image_urls=data.proof_image_urls,
+        )
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 후기를 작성하였습니다.",
+        )
+
+    await notification_service.enqueue(
+        db,
+        user_id=reviewee_id,
+        category=NotificationCategory.REVIEW,
+        title="새 후기가 등록되었습니다",
+        body=f"'{match.title}' 매칭에 후기가 등록되었습니다.",
+        link=f"/matches/{match.id}",
+    )
+    await db.commit()
+
+    return MatchReviewCreatedResponse(
+        review_id=review.id,
+        match_id=match.id,
+        rating=review.rating,
+        created_at=review.created_at,
+    )
+
+
+# ─── 3.15 GET /users/me/matches ──────────────────────────────────────────────
+
+
+async def list_my_matches(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    role: str,
+    status_filter: MatchStatus | None,
+    page: int,
+    size: int,
+) -> MyMatchListResponse:
+    from app.crud import chat as chat_crud
+
+    if role == "author":
+        rows, total = await match_crud.list_my_matches_as_author(
+            db,
+            user_id=current_user.id,
+            status_filter=status_filter,
+            page=page,
+            size=size,
+        )
+        match_ids = [m.id for m, *_ in rows]
+        # 매칭별 ACCEPTED 봉사자 닉네임 + 미읽음 메시지 수 (일괄 조회로 N+1 방지).
+        matched_map = await match_crud.matched_applicant_nicknames(db, match_ids)
+        unread_map = await chat_crud.unread_count_for_matches(
+            db, match_ids=match_ids, viewer_id=current_user.id
+        )
+        items = [
+            MyMatchListItem(
+                match_id=m.id,
+                title=m.title,
+                address=m.address,
+                latitude=lat,
+                longitude=lng,
+                desired_date=m.desired_date,
+                status=m.status,
+                author_nickname=author_nick,
+                created_at=m.created_at,
+                applications_count=app_count,
+                matched_applicant_nickname=matched_map.get(m.id),
+                unread_message_count=unread_map.get(m.id, 0),
+                my_application_status=None,
+                received_rating=None,
+            )
+            for m, lat, lng, author_nick, app_count in rows
+        ]
+    elif role == "applicant":
+        rows, total = await match_crud.list_my_matches_as_applicant(
+            db,
+            user_id=current_user.id,
+            status_filter=status_filter,
+            page=page,
+            size=size,
+        )
+        match_ids = [m.id for m, *_ in rows]
+        # 본인이 reviewee로 받은 후기 평점 (DONE 매칭 카드의 '받은 평점' 표시용).
+        rating_map = await match_crud.received_ratings_for(
+            db, user_id=current_user.id, match_ids=match_ids
+        )
+        items = [
+            MyMatchListItem(
+                match_id=m.id,
+                title=m.title,
+                address=m.address,
+                latitude=lat,
+                longitude=lng,
+                desired_date=m.desired_date,
+                status=m.status,
+                author_nickname=author_nick,
+                created_at=m.created_at,
+                applications_count=None,
+                matched_applicant_nickname=None,
+                unread_message_count=0,
+                my_application_status=my_status,
+                received_rating=rating_map.get(m.id),
+            )
+            for m, lat, lng, author_nick, my_status in rows
+        ]
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="role 은 'author' 또는 'applicant' 이어야 합니다.",
+        )
+
+    return MyMatchListResponse(items=items, total=total, page=page, size=size)

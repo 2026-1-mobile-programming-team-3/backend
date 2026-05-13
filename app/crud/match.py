@@ -240,14 +240,18 @@ async def list_applications_with_applicants(
     page: int,
     size: int,
     exclude_applicant_ids: list[int] | None = None,
+    applicant_id: int | None = None,
 ) -> tuple[list[tuple[MatchApplication, str | None]], int]:
     """(application, applicant_nickname) created_at ASC + 총 개수.
-    exclude_applicant_ids: 차단/제외 대상. NOT IN 필터로 적용."""
+    exclude_applicant_ids: 차단/제외 대상. NOT 인 필터로 적용.
+    applicant_id: 특정 지원자의 신청만 조회할 때 사용."""
     base_filters = [MatchApplication.match_id == match_id]
     if exclude_applicant_ids:
         base_filters.append(
             MatchApplication.applicant_id.notin_(exclude_applicant_ids)
         )
+    if applicant_id is not None:
+        base_filters.append(MatchApplication.applicant_id == applicant_id)
 
     count_stmt = (
         select(func.count())
@@ -323,3 +327,272 @@ async def reject_application(
     """단건 REJECT. commit은 호출자 책임."""
     application.status = ApplicationStatus.REJECTED
     application.updated_at = datetime.now(timezone.utc)
+
+
+# ─── 3.9 PATCH /matches/{match_id}/status ────────────────────────────────────
+
+
+async def set_match_status(
+    db: AsyncSession, match: Match, new_status: MatchStatus
+) -> None:
+    """commit은 호출자 책임."""
+    match.status = new_status
+    match.updated_at = datetime.now(timezone.utc)
+
+
+async def has_accepted_application(db: AsyncSession, match_id: int) -> bool:
+    stmt = (
+        select(func.count())
+        .select_from(MatchApplication)
+        .where(
+            MatchApplication.match_id == match_id,
+            MatchApplication.status == ApplicationStatus.ACCEPTED,
+        )
+    )
+    return int((await db.execute(stmt)).scalar_one()) > 0
+
+
+async def get_accepted_applicant_id(
+    db: AsyncSession, match_id: int
+) -> int | None:
+    stmt = select(MatchApplication.applicant_id).where(
+        MatchApplication.match_id == match_id,
+        MatchApplication.status == ApplicationStatus.ACCEPTED,
+    )
+    return (await db.execute(stmt)).scalar_one_or_none()
+
+
+# ─── 3.13 POST /matches/{match_id}/review ────────────────────────────────────
+
+
+async def create_review(
+    db: AsyncSession,
+    *,
+    match_id: int,
+    reviewer_id: int,
+    reviewee_id: int,
+    rating: int,
+    content: str,
+    proof_image_urls: list[str] | None,
+) -> MatchReview:
+    """UNIQUE(match_id, reviewer_id) 위반 시 IntegrityError — 호출자가 잡아 409 변환."""
+    review = MatchReview(
+        match_id=match_id,
+        reviewer_id=reviewer_id,
+        reviewee_id=reviewee_id,
+        rating=rating,
+        content=content,
+        proof_image_urls=proof_image_urls,
+    )
+    db.add(review)
+    await db.commit()
+    await db.refresh(review)
+    return review
+
+
+# ─── 3.15 GET /users/me/matches ──────────────────────────────────────────────
+
+
+async def list_my_matches_as_author(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    status_filter: MatchStatus | None,
+    page: int,
+    size: int,
+) -> tuple[list[tuple[Match, float, float, str | None, int]], int]:
+    """본인이 작성한 매칭. (Match, lat, lng, author_nickname, applications_count) + total."""
+    location_geom = func.cast(Match.location, Geometry)
+
+    filters = [Match.deleted_at.is_(None), Match.author_id == user_id]
+    if status_filter is not None:
+        filters.append(Match.status == status_filter)
+
+    count_stmt = select(func.count()).select_from(Match).where(*filters)
+    total = int((await db.execute(count_stmt)).scalar_one())
+
+    app_count_subq = (
+        select(func.count())
+        .select_from(MatchApplication)
+        .where(MatchApplication.match_id == Match.id)
+        .correlate(Match)
+        .scalar_subquery()
+    )
+    stmt = (
+        select(
+            Match,
+            func.ST_Y(location_geom).label("lat"),
+            func.ST_X(location_geom).label("lng"),
+            User.nickname,
+            app_count_subq.label("applications_count"),
+        )
+        .outerjoin(User, (User.id == Match.author_id) & (User.deleted_at.is_(None)))
+        .where(*filters)
+        .order_by(Match.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+    )
+    result = await db.execute(stmt)
+    rows = [
+        (row[0], float(row[1]), float(row[2]), row[3], int(row[4] or 0))
+        for row in result.all()
+    ]
+    return rows, total
+
+
+async def list_my_matches_as_applicant(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    status_filter: MatchStatus | None,
+    page: int,
+    size: int,
+) -> tuple[
+    list[tuple[Match, float, float, str | None, ApplicationStatus]], int
+]:
+    """본인이 신청한 매칭. (Match, lat, lng, author_nickname, my_application_status) + total."""
+    location_geom = func.cast(Match.location, Geometry)
+
+    filters = [
+        Match.deleted_at.is_(None),
+        MatchApplication.applicant_id == user_id,
+    ]
+    if status_filter is not None:
+        filters.append(Match.status == status_filter)
+
+    count_stmt = (
+        select(func.count())
+        .select_from(MatchApplication)
+        .join(Match, Match.id == MatchApplication.match_id)
+        .where(*filters)
+    )
+    total = int((await db.execute(count_stmt)).scalar_one())
+
+    stmt = (
+        select(
+            Match,
+            func.ST_Y(location_geom).label("lat"),
+            func.ST_X(location_geom).label("lng"),
+            User.nickname,
+            MatchApplication.status,
+        )
+        .join(MatchApplication, MatchApplication.match_id == Match.id)
+        .outerjoin(User, (User.id == Match.author_id) & (User.deleted_at.is_(None)))
+        .where(*filters)
+        .order_by(Match.created_at.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+    )
+    result = await db.execute(stmt)
+    rows = [
+        (row[0], float(row[1]), float(row[2]), row[3], row[4])
+        for row in result.all()
+    ]
+    return rows, total
+
+
+# ─── 홈 대시보드용 단일 매칭 요약 ────────────────────────────────────────────
+
+
+async def latest_active_match_as_author(
+    db: AsyncSession, user_id: int
+) -> tuple[Match, int] | None:
+    """본인이 작성한 매칭 중 가장 최근의 활성(DONE 아닌) 1건과 신청자 수."""
+    app_count_subq = (
+        select(func.count())
+        .select_from(MatchApplication)
+        .where(MatchApplication.match_id == Match.id)
+        .correlate(Match)
+        .scalar_subquery()
+    )
+    stmt = (
+        select(Match, app_count_subq.label("applications_count"))
+        .where(
+            Match.author_id == user_id,
+            Match.deleted_at.is_(None),
+            Match.status != MatchStatus.DONE,
+        )
+        .order_by(Match.created_at.desc())
+        .limit(1)
+    )
+    row = (await db.execute(stmt)).first()
+    if row is None:
+        return None
+    return row[0], int(row[1] or 0)
+
+
+async def latest_active_match_as_applicant(
+    db: AsyncSession, user_id: int
+) -> tuple[Match, ApplicationStatus] | None:
+    """본인이 신청한 매칭 중 가장 최근의 활성 1건과 본인 신청 상태."""
+    stmt = (
+        select(Match, MatchApplication.status)
+        .join(MatchApplication, MatchApplication.match_id == Match.id)
+        .where(
+            MatchApplication.applicant_id == user_id,
+            Match.deleted_at.is_(None),
+            Match.status != MatchStatus.DONE,
+        )
+        .order_by(MatchApplication.created_at.desc())
+        .limit(1)
+    )
+    row = (await db.execute(stmt)).first()
+    if row is None:
+        return None
+    return row[0], row[1]
+
+
+async def review_exists(
+    db: AsyncSession, *, match_id: int, reviewer_id: int
+) -> bool:
+    stmt = select(func.count()).select_from(MatchReview).where(
+        MatchReview.match_id == match_id,
+        MatchReview.reviewer_id == reviewer_id,
+    )
+    return int((await db.execute(stmt)).scalar_one()) > 0
+
+
+# ─── 마이페이지 enrichment 헬퍼 ──────────────────────────────────────────────
+
+
+async def count_authored_matches(db: AsyncSession, user_id: int) -> int:
+    """본인이 작성한 활성 매칭 총 건수 (마이페이지 활동 통계용)."""
+    stmt = (
+        select(func.count())
+        .select_from(Match)
+        .where(Match.author_id == user_id, Match.deleted_at.is_(None))
+    )
+    return int((await db.execute(stmt)).scalar_one())
+
+
+async def matched_applicant_nicknames(
+    db: AsyncSession, match_ids: list[int]
+) -> dict[int, str | None]:
+    """match_id → ACCEPTED 신청자의 nickname (없으면 키 자체가 없음)."""
+    if not match_ids:
+        return {}
+    stmt = (
+        select(MatchApplication.match_id, User.nickname)
+        .outerjoin(
+            User,
+            (User.id == MatchApplication.applicant_id) & (User.deleted_at.is_(None)),
+        )
+        .where(
+            MatchApplication.match_id.in_(match_ids),
+            MatchApplication.status == ApplicationStatus.ACCEPTED,
+        )
+    )
+    return {row[0]: row[1] for row in (await db.execute(stmt)).all()}
+
+
+async def received_ratings_for(
+    db: AsyncSession, *, user_id: int, match_ids: list[int]
+) -> dict[int, int]:
+    """user_id가 reviewee인 후기들 — match_id → rating."""
+    if not match_ids:
+        return {}
+    stmt = select(MatchReview.match_id, MatchReview.rating).where(
+        MatchReview.reviewee_id == user_id,
+        MatchReview.match_id.in_(match_ids),
+    )
+    return {row[0]: int(row[1]) for row in (await db.execute(stmt)).all()}

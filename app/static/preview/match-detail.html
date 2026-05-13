@@ -72,6 +72,7 @@
               <div class="app-status">—</div>
             </div>
             <div class="app-actions">
+              <button class="btn-chat" type="button" style="padding:8px 12px; border-radius:999px; background:var(--accent-dim); color:var(--accent); border:none; font-size:16px; cursor:pointer;" title="채팅하기"><i class="ph ph-chat-circle-dots"></i></button>
               <button class="btn-accept" type="button">수락</button>
               <button class="btn-reject" type="button">거절</button>
             </div>
@@ -85,7 +86,8 @@
   </main>
 
   <!-- 봉사자 신청 버튼 -->
-  <div class="detail-cta">
+  <div class="detail-cta" style="display:flex; gap:12px;">
+    <button class="btn-cta" id="btn-chat" hidden style="background:var(--accent-dim); color:var(--accent); flex:0 0 auto; width:auto; padding:16px 20px;"><i class="ph ph-chat-circle-dots"></i></button>
     <button class="btn-cta" id="btn-apply" hidden>봉사 신청하기</button>
   </div>
 </div>

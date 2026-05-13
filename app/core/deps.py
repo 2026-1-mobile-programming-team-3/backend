@@ -1,12 +1,12 @@
 import redis.asyncio as aioredis
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, WebSocket, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.security import decode_access_token
-from app.db.session import get_db
+from app.db.session import AsyncSessionLocal, get_db
 from app.models.enums import UserRole
 from app.models.user import User
 
@@ -63,3 +63,40 @@ async def get_current_volunteer(
             detail="봉사자 권한이 필요합니다.",
         )
     return current_user
+
+
+# WebSocket은 HTTP 인증 의존성을 그대로 쓸 수 없어 별도 헬퍼.
+# query `token` (선호) 또는 첫 subprotocol에 'bearer.<JWT>' 형태를 둘 다 허용한다.
+def _extract_ws_token(websocket: WebSocket) -> str | None:
+    token = websocket.query_params.get("token")
+    if token:
+        return token
+    for proto in websocket.headers.get_list("sec-websocket-protocol") or []:
+        for part in (p.strip() for p in proto.split(",")):
+            if part.startswith("bearer."):
+                return part[len("bearer.") :]
+    return None
+
+
+async def get_user_from_ws(websocket: WebSocket) -> User | None:
+    """WS 핸드쉐이크 단계에서 JWT 디코드 → User 반환. 실패 시 None.
+    핸들러가 None을 받으면 4401로 close 해야 한다."""
+    token = _extract_ws_token(websocket)
+    if not token:
+        return None
+    try:
+        payload = decode_access_token(token)
+        user_id_str = payload.get("sub")
+        if not user_id_str:
+            return None
+        user_id = int(user_id_str)
+    except (JWTError, ValueError):
+        return None
+
+    from app.crud.user import get_by_id
+
+    async with AsyncSessionLocal() as session:
+        user = await get_by_id(session, user_id)
+        if user is None or user.deleted_at is not None:
+            return None
+        return user

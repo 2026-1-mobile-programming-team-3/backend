@@ -8,6 +8,29 @@ from app.db.base import Base
 from app.models.enums import NotificationCategory
 
 
+class NotificationSetting(Base):
+    """카테고리별 push 알림 on/off 설정. 행이 없는 카테고리는 ON(true)으로 간주."""
+
+    __tablename__ = "notification_settings"
+
+    user_id: Mapped[int] = mapped_column(
+        sa.BigInteger, sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    category: Mapped[NotificationCategory] = mapped_column(
+        sa.Enum(NotificationCategory, name="notification_category", create_type=False),
+        primary_key=True,
+    )
+    push_enabled: Mapped[bool] = mapped_column(
+        sa.Boolean,
+        nullable=False,
+        default=True,
+        server_default=sa.text("TRUE"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

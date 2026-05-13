@@ -17,8 +17,19 @@ from app.schemas.match import (
     MatchCreateRequest,
     MatchDetail,
     MatchListResponse,
+    MatchReviewCreatedResponse,
+    MatchReviewCreateRequest,
+    MatchStatusUpdateRequest,
+    MatchStatusUpdateResponse,
     MatchUpdateRequest,
 )
+from app.schemas.chat import (
+    ChatMessageCreatedResponse,
+    ChatMessageCreateRequest,
+    ChatMessageListResponse,
+    ChatThreadListResponse,
+)
+from app.services import chat as chat_service
 from app.services import match as match_service
 
 router = APIRouter(prefix="/matches", tags=["Matches"])
@@ -143,4 +154,89 @@ async def respond_application(
         match_id=match_id,
         application_id=application_id,
         data=data,
+    )
+
+
+@router.patch("/{match_id}/status", response_model=MatchStatusUpdateResponse)
+async def update_match_status(
+    match_id: int,
+    data: MatchStatusUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await match_service.update_match_status(
+        db, current_user=current_user, match_id=match_id, data=data
+    )
+
+
+@router.post(
+    "/{match_id}/review",
+    response_model=MatchReviewCreatedResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_review(
+    match_id: int,
+    data: MatchReviewCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await match_service.create_review(
+        db, current_user=current_user, match_id=match_id, data=data
+    )
+
+
+# ─── Chat (매칭에 내포) ──────────────────────────────────────────────────────
+
+
+@router.post(
+    "/{match_id}/applications/{application_id}/messages",
+    response_model=ChatMessageCreatedResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def send_chat_message(
+    match_id: int,
+    application_id: int,
+    data: ChatMessageCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await chat_service.send_message(
+        db,
+        current_user=current_user,
+        match_id=match_id,
+        application_id=application_id,
+        content=data.content,
+    )
+
+
+@router.get(
+    "/{match_id}/applications/{application_id}/messages",
+    response_model=ChatMessageListResponse,
+)
+async def list_chat_messages(
+    match_id: int,
+    application_id: int,
+    before_id: int | None = Query(None, ge=1),
+    size: int = Query(30, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await chat_service.list_messages(
+        db,
+        current_user=current_user,
+        match_id=match_id,
+        application_id=application_id,
+        before_id=before_id,
+        size=size,
+    )
+
+
+@router.get("/{match_id}/chats", response_model=ChatThreadListResponse)
+async def list_chat_threads(
+    match_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await chat_service.list_threads(
+        db, current_user=current_user, match_id=match_id
     )

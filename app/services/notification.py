@@ -1,9 +1,11 @@
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import notification as notification_crud
 from app.models.enums import NotificationCategory
+from app.models.notification import Notification, NotificationSetting
 from app.schemas.notification import (
     DeviceRegisteredResponse,
     DeviceRegisterRequest,
@@ -12,6 +14,70 @@ from app.schemas.notification import (
     NotificationListResponse,
     UnreadCountResponse,
 )
+
+
+async def _is_category_enabled(
+    db: AsyncSession, *, user_id: int, category: NotificationCategory
+) -> bool:
+    """행이 없으면 ON(기본값)으로 간주."""
+    stmt = select(NotificationSetting.push_enabled).where(
+        NotificationSetting.user_id == user_id,
+        NotificationSetting.category == category,
+    )
+    row = (await db.execute(stmt)).scalar_one_or_none()
+    return True if row is None else bool(row)
+
+
+async def enqueue(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    category: NotificationCategory,
+    title: str,
+    body: str,
+    link: str | None = None,
+) -> Notification | None:
+    """알림 1건을 DB에 적재. 호출자는 commit 책임을 가진다.
+
+    사용자가 해당 카테고리를 OFF로 설정한 경우(`notification_settings.push_enabled=False`)
+    적재 자체를 건너뛰고 `None`을 반환한다 — 인앱·푸시 모두 노출되지 않는다.
+    행이 없으면 기본 ON.
+    """
+    if not await _is_category_enabled(db, user_id=user_id, category=category):
+        return None
+    notification = Notification(
+        user_id=user_id,
+        category=category,
+        title=title,
+        body=body,
+        link=link,
+    )
+    db.add(notification)
+    return notification
+
+
+# ─── 마이페이지: 카테고리별 push 알림 설정 ────────────────────────────────────
+
+
+async def get_notification_settings(
+    db: AsyncSession, *, user_id: int
+) -> dict[NotificationCategory, bool]:
+    """모든 카테고리에 대한 push on/off — 행이 없는 카테고리는 True로 기본."""
+    rows = await notification_crud.list_settings(db, user_id)
+    saved = {row.category: row.push_enabled for row in rows}
+    return {cat: saved.get(cat, True) for cat in NotificationCategory}
+
+
+async def update_notification_settings(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    updates: dict[NotificationCategory, bool],
+) -> dict[NotificationCategory, bool]:
+    await notification_crud.upsert_settings(
+        db, user_id=user_id, updates=updates
+    )
+    return await get_notification_settings(db, user_id=user_id)
 
 
 async def list_notifications(

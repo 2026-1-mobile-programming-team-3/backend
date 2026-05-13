@@ -4,7 +4,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import NotificationCategory
-from app.models.notification import Notification
+from app.models.notification import Notification, NotificationSetting
 from app.models.user import Device
 
 
@@ -89,3 +89,44 @@ async def mark_all_read(db: AsyncSession, user_id: int) -> int:
     result = await db.execute(stmt)
     await db.commit()
     return int(result.rowcount or 0)
+
+
+# ─── NotificationSetting CRUD ────────────────────────────────────────────────
+
+
+async def list_settings(
+    db: AsyncSession, user_id: int
+) -> list[NotificationSetting]:
+    stmt = select(NotificationSetting).where(NotificationSetting.user_id == user_id)
+    return list((await db.execute(stmt)).scalars().all())
+
+
+async def upsert_settings(
+    db: AsyncSession,
+    *,
+    user_id: int,
+    updates: dict[NotificationCategory, bool],
+) -> list[NotificationSetting]:
+    """upsert: 기존 행이 있으면 갱신, 없으면 신규. 누락된 카테고리는 변경 없음."""
+    if not updates:
+        return await list_settings(db, user_id)
+
+    now = datetime.now(timezone.utc)
+    existing = {
+        s.category: s for s in await list_settings(db, user_id)
+    }
+    for category, enabled in updates.items():
+        row = existing.get(category)
+        if row is None:
+            row = NotificationSetting(
+                user_id=user_id,
+                category=category,
+                push_enabled=enabled,
+            )
+            db.add(row)
+            existing[category] = row
+        else:
+            row.push_enabled = enabled
+            row.updated_at = now
+    await db.commit()
+    return list(existing.values())

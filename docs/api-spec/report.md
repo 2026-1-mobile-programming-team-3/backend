@@ -2,9 +2,7 @@
 
 공통 사항(Base URL, 헤더, 에러 코드 등)은 `auth.md` 참고.
 
-> ⚠️ 본 카테고리는 부분 구현 상태이다.
-> - **구현 완료**: 4.1 (사용자 단위 신고로 확정), 4.3, 4.4, 4.5
-> - **미구현(TBD)**: 4.2 (채팅 내 유저 신고)
+> 구현 상태: 4.1~4.5 모두 정식 명세.
 
 ---
 
@@ -12,9 +10,9 @@
 
 ### 신고 (Report)
 - **본인 신고 금지**: `target_user_id == reporter` 면 400.
-- **중복 신고 차단**: `(reporter_id, target_user_id)` 유니크 제약 — 동일 사용자에 대한 두 번째 신고는 409.
+- **중복 신고 차단(USER 한정)**: `(reporter_id, target_user_id)` 부분 유니크 — `report_type='USER'` 인 두 번째 신고는 409. 채팅 메시지 단위 신고(`POST /reports/chat`)는 메시지마다 자유롭게 작성 가능.
 - **이유 길이**: `reason` 1~2,000자.
-- **레이트 리밋**: `POST /reports`는 **20회 / 시간 / IP**. 초과 시 429.
+- **레이트 리밋**: `POST /reports`, `POST /reports/chat` 각각 **20회 / 시간 / IP**. 초과 시 429.
 
 ### 차단 (Block)
 - **본인 차단 금지**: 400.
@@ -71,12 +69,37 @@
 
 ---
 
-### 4.2 채팅 내 유저 신고 등록 — `POST /reports/chat` [T1] (TBD)
+### 4.2 채팅 내 유저 신고 등록 — `POST /reports/chat` [T1]
 
-> ⚠️ 코드 미구현. 아래는 제안 명세.
+**인증 필요** (채팅방 참여자만)
 
-- 인증 필요
-- Body(예정): `chat_id`, `target_user_id`, `message_id`, `reason`
+**Request Body**
+
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| chat_id | integer | Y | `chat_rooms.id` |
+| target_user_id | integer | Y | 신고 대상 (해당 방의 상대방) |
+| message_id | integer | Y | 신고할 메시지 (해당 방 소속, sender == target_user_id) |
+| reason | string | Y | 신고 사유 (1~2000자) |
+
+```json
+{ "chat_id": 10, "target_user_id": 5, "message_id": 100, "reason": "욕설" }
+```
+
+**Response — 201 Created**
+```json
+{ "report_id": 2, "status": "RECEIVED", "created_at": "2026-04-15T12:00:00Z" }
+```
+
+**Errors**
+
+| 상태 코드 | 설명 |
+| --- | --- |
+| 400 | 본인 신고, target_user_id가 방 상대방이 아님, 메시지 sender가 target이 아님 |
+| 401 | 인증 실패 |
+| 403 | 채팅 참여자 아님 |
+| 404 | 채팅방 또는 메시지 없음 |
+| 429 | 레이트 리밋 초과 |
 
 ---
 

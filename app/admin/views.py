@@ -1,8 +1,9 @@
 from sqladmin import ModelView
 
-from app.models.match import ChatMessage, Match, MatchApplication, MatchReview
+from app.models.favorite import StoreFavorite
+from app.models.match import ChatMessage, ChatRoom, Match, MatchApplication, MatchReview
 from app.models.news import CalendarEvent
-from app.models.notification import Notification
+from app.models.notification import Notification, NotificationSetting
 from app.models.report import Report
 from app.models.store import Store, StoreReview
 from app.models.user import Device, Pet, RefreshToken, User
@@ -42,9 +43,27 @@ class PetAdmin(ModelView, model=Pet):
     name = "반려동물"
     name_plural = "반려동물 목록"
     icon = "fa-solid fa-paw"
-    column_list = [Pet.id, Pet.user_id, Pet.name, Pet.species, Pet.breed, Pet.is_neutered, Pet.weight_kg, Pet.created_at]
+    column_list = [Pet.id, Pet.user_id, Pet.name, Pet.species, Pet.breed, Pet.gender, Pet.is_neutered, Pet.weight_kg, Pet.created_at]
     column_sortable_list = [Pet.id, Pet.created_at]
     form_excluded_columns = ["user", "created_at", "updated_at"]
+
+
+class StoreFavoriteAdmin(ModelView, model=StoreFavorite):
+    name = "즐겨찾기 매장"
+    name_plural = "즐겨찾기 매장 목록"
+    icon = "fa-solid fa-bookmark"
+    column_list = [StoreFavorite.id, StoreFavorite.user_id, StoreFavorite.store_id, StoreFavorite.created_at]
+    column_sortable_list = [StoreFavorite.id, StoreFavorite.created_at]
+    form_excluded_columns = ["created_at"]
+
+
+class NotificationSettingAdmin(ModelView, model=NotificationSetting):
+    name = "알림 설정"
+    name_plural = "알림 설정 목록"
+    icon = "fa-solid fa-bell-slash"
+    column_list = [NotificationSetting.user_id, NotificationSetting.category, NotificationSetting.push_enabled, NotificationSetting.updated_at]
+    column_sortable_list = [NotificationSetting.user_id, NotificationSetting.updated_at]
+    form_excluded_columns = ["updated_at"]
 
 
 class NotificationAdmin(ModelView, model=Notification):
@@ -73,16 +92,25 @@ class MatchApplicationAdmin(ModelView, model=MatchApplication):
     icon = "fa-solid fa-file-circle-plus"
     column_list = [MatchApplication.id, MatchApplication.match_id, MatchApplication.applicant_id, MatchApplication.status, MatchApplication.created_at]
     column_sortable_list = [MatchApplication.id, MatchApplication.created_at]
-    form_excluded_columns = ["match", "chat_messages", "created_at", "updated_at"]
+    form_excluded_columns = ["match", "chat_room", "created_at", "updated_at"]
+
+
+class ChatRoomAdmin(ModelView, model=ChatRoom):
+    name = "채팅방"
+    name_plural = "채팅방 목록"
+    icon = "fa-solid fa-comments"
+    column_list = [ChatRoom.id, ChatRoom.application_id, ChatRoom.created_at]
+    column_sortable_list = [ChatRoom.id, ChatRoom.created_at]
+    form_excluded_columns = ["application", "messages", "created_at"]
 
 
 class ChatMessageAdmin(ModelView, model=ChatMessage):
     name = "채팅 메시지"
     name_plural = "채팅 메시지 목록"
     icon = "fa-solid fa-message"
-    column_list = [ChatMessage.id, ChatMessage.application_id, ChatMessage.sender_id, ChatMessage.read_at, ChatMessage.created_at]
+    column_list = [ChatMessage.id, ChatMessage.chat_room_id, ChatMessage.sender_id, ChatMessage.read_at, ChatMessage.created_at]
     column_sortable_list = [ChatMessage.id, ChatMessage.created_at]
-    form_excluded_columns = ["application", "created_at"]
+    form_excluded_columns = ["room", "created_at"]
 
 
 class MatchReviewAdmin(ModelView, model=MatchReview):

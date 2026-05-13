@@ -8,7 +8,17 @@ from app.core.config import settings
 from app.db.base import Base
 
 # 모든 모델을 임포트해야 Base.metadata에 테이블 정보가 등록됩니다.
-from app.models import match, news, notification, report, store, user, volunteer  # noqa: F401
+from app.models import (  # noqa: F401
+    block,
+    favorite,
+    match,
+    news,
+    notification,
+    report,
+    store,
+    user,
+    volunteer,
+)
 
 config = context.config
 if config.config_file_name is not None:

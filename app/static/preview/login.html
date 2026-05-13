@@ -36,7 +36,7 @@
   <div class="auth-logo">시흥<span>가개</span></div>
   <div class="auth-sub">반려동물 이동 지원 매칭 서비스</div>
   <form class="auth-form" id="loginForm">
-    <input class="auth-field" type="tel" id="phone" placeholder="전화번호" autocomplete="tel" required />
+    <input class="auth-field" type="email" id="email" placeholder="이메일" autocomplete="email" required />
     <input class="auth-field" type="password" id="password" placeholder="비밀번호" autocomplete="current-password" required />
     <div class="auth-err" id="errMsg"></div>
     <button class="auth-btn" type="submit">로그인</button>
@@ -55,18 +55,18 @@
   DebugPanel.mount();
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
     const errEl = document.getElementById('errMsg');
     const btn = e.submitter || e.target.querySelector('[type=submit]');
     errEl.textContent = '';
     btn.disabled = true;
     try {
-      await Auth.login(phone, password);
+      await Auth.login(email, password);
       const params = new URLSearchParams(location.search);
       location.href = params.get('redirect') || 'index.html';
     } catch (err) {
-      errEl.textContent = err.status === 401 ? '전화번호 또는 비밀번호가 올바르지 않습니다.' : '서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.';
+      errEl.textContent = err.status === 401 ? '이메일 또는 비밀번호가 올바르지 않습니다.' : '서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.';
       btn.disabled = false;
     }
   });

@@ -19,14 +19,16 @@
   --accent:            #D08A4E;
   --accent-soft:       #F2D6B6;
   --accent-dim:        rgba(208,138,78,0.12);
-  --raspberry:         #C9476A;
-  --raspberry-soft:    #F1C6CF;
-  --raspberry-dim:     rgba(201,71,106,0.10);
+  --raspberry:         #F04270;
+  --raspberry-soft:    #FFE0E8;
+  --raspberry-dim:     rgba(240,66,112,0.10);
   --mint:              #7A9B6E;
   --mint-soft:         #CFDDC8;
   --mint-dim:          rgba(122,155,110,0.12);
   --sand:              #B89E7E;
   --sand-soft:         #E5D7C2;
+  --star:              #FFB800;
+  --score:             #4BBF6A;
 
   --line:              rgba(30,18,10,0.07);
   --line-mid:          rgba(30,18,10,0.12);
