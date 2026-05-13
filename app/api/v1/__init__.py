@@ -4,6 +4,10 @@ from app.api.v1 import (
     admin,
     auth,
     blocks,
+    chats,
+    favorites,
+    geo,
+    home,
     maps,
     matches,
     news,
@@ -23,4 +27,8 @@ api_router.include_router(matches.router)
 api_router.include_router(notifications.router)
 api_router.include_router(reports.router)
 api_router.include_router(blocks.router)
+api_router.include_router(home.router)
+api_router.include_router(geo.router)
+api_router.include_router(favorites.router)
+api_router.include_router(chats.router)
 api_router.include_router(admin.router)

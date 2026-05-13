@@ -340,6 +340,30 @@
     } catch (err) {
       Toast.error(`홈 로딩 실패: ${err.message}`);
     }
+    // GPS 위치 기반 region pill 덮어쓰기
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const geo = await API.get(
+            `/api/v1/geo/reverse?lat=${latitude}&lng=${longitude}`,
+          );
+          // tb-loc-pill 안의 data-bind="user.region_dong" 노드를 GPS 라벨로 덮어쓰기
+          const pill = document.querySelector('.tb-loc-pill [data-bind="user.region_dong"]');
+          if (pill) {
+            pill.textContent = geo.label;
+            pill.removeAttribute("data-bind"); // 이후 Bind.apply 가 덮어쓰지 못하게
+          }
+        } catch (err) {
+          DebugPanel.log({ method: "GEO", path: "/geo/reverse", status: 0, err: err.message });
+        }
+      },
+      (err) => {
+        DebugPanel.log({ method: "GEO", path: "navigator.geolocation", status: 0, err: err.message });
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },
+    );
   };
 
   // ─── Page boot: 내정보 ────────────────────────────────────────────────────

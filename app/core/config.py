@@ -33,6 +33,7 @@ class Settings(BaseSettings):
 
     NAVER_API_ID: str
     NAVER_API_SECRET: str
+    KAKAO_REST_API_KEY: str
     NEWS_CACHE_TTL: int = 14_400  # 4시간
 
     @property
