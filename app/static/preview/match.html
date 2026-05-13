@@ -301,7 +301,7 @@
 
     <!-- M1: 기본 세로 카드 -->
     <template id="tmpl-match">
-      <a class="mc" data-bind-attr="href:#match-{match_id}">
+      <a class="mc" data-bind-attr="href:match-detail.html?id={match_id}">
         <div class="mc-top">
           <span class="mc-badge" data-bind="status">—</span>
         </div>
@@ -1030,7 +1030,7 @@ Object.assign(window, {
 <script>
 (() => {
   const root = document.getElementById('appRoot');
-  const TAB_URLS = { home:'index.html', match:'match.html', map:'map.html', news:'#', my:'my.html' };
+  const TAB_URLS = { home:'index.html', match:'match.html', map:'map.html', news:'news.html', my:'my.html' };
   const currentTab = 'match';
 
   // 독

@@ -459,25 +459,65 @@
   PreviewApp.bootMatch = async function () {
     if (!Auth.requireLogin()) return;
     DebugPanel.mount();
-    const tabs = document.querySelectorAll(".match-tabs [data-status]");
-    let current = "";
+
+    const STATUS_LABEL = { WAITING:'모집중', MATCHING:'검토중', PROGRESS:'진행중', DONE:'완료' };
+
+    function postProcess() {
+      document.querySelectorAll('#match-list .mc').forEach((card) => {
+        const badge = card.querySelector('.mc-badge');
+        if (!badge) return;
+        const raw = badge.textContent.trim();
+        badge.textContent = STATUS_LABEL[raw] || raw;
+        badge.dataset.s = raw;
+        card.dataset.s = raw;
+      });
+      document.querySelectorAll('#match-list a.mc[href^="#match-"]').forEach((a) => {
+        const id = a.getAttribute('href').replace('#match-', '');
+        if (id) a.href = `match-detail.html?id=${id}`;
+      });
+    }
+
+    const tabs = document.querySelectorAll('.match-tabs .match-tab');
+    let currentStatus = '';
+
     async function load(status) {
+      const qs = status ? `?status=${status}` : '';
       try {
-        const qs = status ? `?status=${status}` : "";
         const data = await API.get(`/api/v1/matches${qs}`);
         Bind.apply(document, data);
+        postProcess();
       } catch (err) {
         Toast.error(`매칭 목록 실패: ${err.message}`);
       }
     }
+
+    // 활동 요약 카드
+    try {
+      const [author, applicant] = await Promise.all([
+        API.get('/api/v1/users/me/matches?role=author&status=MATCHING&size=1'),
+        API.get('/api/v1/users/me/matches?role=applicant&status=PROGRESS&size=1'),
+      ]);
+      const reqEl = document.querySelector('.mac-side:first-child .mac-val');
+      if (reqEl) reqEl.innerHTML = `${author.total}건<span>검토 중</span>`;
+      const volEl = document.querySelector('.mac-side:last-child .mac-val');
+      if (volEl) volEl.innerHTML = `${applicant.total}건<span>진행 중</span>`;
+    } catch { /* 활동 카드 실패는 무시 */ }
+
     tabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        tabs.forEach((t) => t.classList.toggle("active", t === tab));
-        current = tab.getAttribute("data-status") || "";
-        load(current);
+      tab.addEventListener('click', () => {
+        tabs.forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentStatus = tab.dataset.status || '';
+        load(currentStatus);
       });
     });
-    await load(current);
+
+    document.querySelector('.match-fab')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      location.href = 'match-new.html';
+    });
+
+    await load(currentStatus);
   };
 
   // ─── Page boot: 지도 (카드 리스트 fallback) ─────────────────────────────────
