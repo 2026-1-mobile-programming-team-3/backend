@@ -284,8 +284,8 @@
         <div class="profile-badge"><i class="ph ph-paw-print"></i></div>
       </div>
       <div class="profile-info">
-        <div class="profile-name">댕댕이주인</div>
-        <div class="profile-region"><i class="ph ph-map-pin"></i>정왕동</div>
+        <div class="profile-name" data-bind="nickname">댕댕이주인</div>
+        <div class="profile-region"><i class="ph ph-map-pin"></i><span data-bind="region_dong">정왕동</span></div>
       </div>
       <button class="profile-edit">편집</button>
     </div>
@@ -295,8 +295,8 @@
     <div class="pet-card anim-fade-slide-up delay-2">
       <div class="pet-icon"><i class="ph ph-paw-print"></i></div>
       <div class="pet-info">
-        <div class="pet-name">파댕이</div>
-        <div class="pet-detail">강아지 · 3살 · 수컷</div>
+        <div class="pet-name" data-bind="pets.0.name">파댕이</div>
+        <div class="pet-detail"><span data-bind="pets.0.species">강아지</span> · <span data-bind="pets.0.age">3</span>살 · <span data-bind="pets.0.gender">수컷</span></div>
       </div>
       <a class="pet-add" href="my.html"><i class="ph-bold ph-list"></i>전체 보기</a>
     </div>
@@ -305,15 +305,15 @@
     <div class="section-label anim-fade-slide-up delay-3">활동</div>
     <div class="stats-grid anim-fade-slide-up delay-3">
       <a class="stat-card" href="#">
-        <div class="stat-num" style="color:var(--raspberry)">3</div>
+        <div class="stat-num" style="color:var(--raspberry)" data-bind="my_match_count">3</div>
         <div class="stat-label">내 요청</div>
       </a>
       <a class="stat-card" href="#">
-        <div class="stat-num" style="color:var(--mint)">2</div>
+        <div class="stat-num" style="color:var(--mint)" data-bind="volunteer_completed_count">2</div>
         <div class="stat-label">봉사 참여</div>
       </a>
       <a class="stat-card" href="#">
-        <div class="stat-num" style="color:var(--accent)">5</div>
+        <div class="stat-num" style="color:var(--accent)" data-bind="favorite_count">5</div>
         <div class="stat-label">즐겨찾기</div>
       </a>
     </div>
@@ -323,72 +323,28 @@
       내 봉사 요청
       <a href="my.html" style="font-size:11px;font-weight:800;color:var(--raspberry);letter-spacing:.01em;text-decoration:none;display:flex;align-items:center;gap:3px">전체 보기<i class="ph-bold ph-arrow-right" style="font-size:11px"></i></a>
     </div>
-    <div class="my-requests anim-fade-slide-up delay-3">
+    <div class="my-requests anim-fade-slide-up delay-3" data-bind-each="author_matches.items" data-template="#tmpl-author-match"></div>
 
-      <!-- 요청 1: 매칭 전, 봉사자 채팅 도착 -->
-      <a class="mr-card pre" href="chat.html">
+    <template id="tmpl-author-match">
+      <a class="mr-card" data-bind-attr="href:match.html?id={match_id}">
         <div class="mr-header">
           <div class="mr-status pre">
-            <div class="mr-status-dot"></div>매칭 전
-          </div>
-          <div class="mr-chat-btn">
-            <i class="ph-bold ph-chat-circle"></i>새 메시지 1
-          </div>
-        </div>
-        <div class="mr-title">정왕동 실외견 병원 이동 부탁드립니다</div>
-        <div class="mr-info-row">
-          <span><i class="ph ph-paw-print"></i>파댕이 · 강아지</span>
-          <span><i class="ph ph-calendar-blank"></i>5월 10일 오전 10:00</span>
-        </div>
-        <div class="mr-dest">
-          <i class="ph-bold ph-map-pin"></i>
-          <span>정왕 동물병원</span>
-        </div>
-      </a>
-
-      <!-- 요청 2: 매칭 전, 봉사자 2명 신청 -->
-      <a class="mr-card pre" href="match.html">
-        <div class="mr-header">
-          <div class="mr-status pre">
-            <div class="mr-status-dot"></div>매칭 전
+            <div class="mr-status-dot"></div><span data-bind="status">—</span>
           </div>
           <div class="mr-applicants">
-            <i class="ph-bold ph-users"></i>봉사자 2명 신청
+            <i class="ph-bold ph-users"></i>신청 <span data-bind="applications_count">0</span>건
           </div>
         </div>
-        <div class="mr-title">고양이 예방접종 병원 동행 부탁해요</div>
+        <div class="mr-title" data-bind="title">—</div>
         <div class="mr-info-row">
-          <span><i class="ph ph-paw-print"></i>나비 · 고양이</span>
-          <span><i class="ph ph-calendar-blank"></i>5월 17일 오후 2:00</span>
+          <span><i class="ph ph-calendar-blank"></i><span data-bind="desired_date">—</span></span>
         </div>
         <div class="mr-dest">
           <i class="ph-bold ph-map-pin"></i>
-          <span>시흥시 동물병원</span>
+          <span data-bind="address">—</span>
         </div>
       </a>
-
-      <!-- 요청 3: 매칭됨 -->
-      <a class="mr-card matched" href="match.html">
-        <div class="mr-header">
-          <div class="mr-status matched">
-            <div class="mr-status-dot"></div>매칭됨
-          </div>
-          <div class="mr-matched-vol">
-            <i class="ph-bold ph-user-check"></i>봉사천사
-          </div>
-        </div>
-        <div class="mr-title">노령견 정기 산책 도움 요청</div>
-        <div class="mr-info-row">
-          <span><i class="ph ph-paw-print"></i>파댕이 · 강아지</span>
-          <span><i class="ph ph-calendar-blank"></i>4월 25일 오전 9:00</span>
-        </div>
-        <div class="mr-dest">
-          <i class="ph-bold ph-map-pin"></i>
-          <span>정왕 공원</span>
-        </div>
-      </a>
-
-    </div>
+    </template>
 
     <!-- 새 요청 작성 버튼 -->
     <a class="mr-new-btn anim-fade-slide-up delay-4" href="match.html">
@@ -400,57 +356,41 @@
       봉사 활동
       <a href="#" style="font-size:11px;font-weight:800;color:var(--mint);letter-spacing:.01em;text-decoration:none;display:flex;align-items:center;gap:3px">전체 보기<i class="ph-bold ph-arrow-right" style="font-size:11px"></i></a>
     </div>
-    <div class="my-requests anim-fade-slide-up delay-4">
+    <div class="my-requests anim-fade-slide-up delay-4" data-bind-each="applicant_matches.items" data-template="#tmpl-applicant-match"></div>
 
-      <!-- 매칭됨 (봉사활동 전) -->
-      <a class="mr-card matched" href="chat.html">
+    <template id="tmpl-applicant-match">
+      <a class="mr-card" data-bind-attr="href:match.html?id={match_id}">
         <div class="mr-header">
-          <div class="mr-status matched"><div class="mr-status-dot"></div>매칭됨</div>
-          <div class="mr-matched-vol"><i class="ph-bold ph-calendar-check"></i>D-3</div>
+          <div class="mr-status pre">
+            <div class="mr-status-dot"></div><span data-bind="status">—</span>
+          </div>
+          <div class="mr-done-label">나의 상태: <span data-bind="my_application_status">—</span></div>
         </div>
-        <div class="mr-title">정왕동 실외견 병원 이동 부탁드립니다</div>
+        <div class="mr-title" data-bind="title">—</div>
         <div class="mr-info-row">
-          <span><i class="ph ph-user"></i>요청자 · 댕댕이주인</span>
-          <span><i class="ph ph-calendar-blank"></i>5월 10일 오전 10:00</span>
+          <span><i class="ph ph-user"></i>요청자 · <span data-bind="author_nickname">—</span></span>
+          <span><i class="ph ph-calendar-blank"></i><span data-bind="desired_date">—</span></span>
         </div>
         <div class="mr-dest">
           <i class="ph-bold ph-map-pin"></i>
-          <span>정왕 동물병원</span>
+          <span data-bind="address">—</span>
         </div>
       </a>
-
-      <!-- 종료됨 -->
-      <a class="mr-card done" href="#">
-        <div class="mr-header">
-          <div class="mr-status done"><div class="mr-status-dot"></div>종료됨</div>
-          <div class="mr-done-label"><i class="ph-fill ph-star" style="color:#F5B942"></i>4.9 받음</div>
-        </div>
-        <div class="mr-title">노령견 정기 산책 도움</div>
-        <div class="mr-info-row">
-          <span><i class="ph ph-user"></i>요청자 · 시흥맘</span>
-          <span><i class="ph ph-calendar-blank"></i>4월 20일 오전 9:00</span>
-        </div>
-        <div class="mr-dest">
-          <i class="ph-bold ph-map-pin"></i>
-          <span>정왕 공원</span>
-        </div>
-      </a>
-
-    </div>
+    </template>
 
     <!-- 봉사 뱃지 -->
     <div class="section-label anim-fade-slide-up delay-3">봉사 뱃지</div>
     <div class="badge-section anim-fade-slide-up delay-4">
       <div class="badge-head">
-        <div class="badge-head-title"><i class="ph ph-medal"></i>봉사 등급</div>
+        <div class="badge-head-title"><i class="ph ph-medal"></i>봉사 등급 — <span data-bind="badge.tier">새싹</span></div>
         <a class="badge-head-link" href="#">전체 보기<i class="ph-bold ph-arrow-right"></i></a>
       </div>
       <div class="badge-progress">
         <div class="bp-labels">
-          <span class="bp-current">새싹 등급 · 누적 <em>2건</em></span>
-          <span class="bp-next">꽃까지 3건</span>
+          <span class="bp-current"><span data-bind="badge.tier">새싹</span> 등급 · 누적 <em data-bind="badge.count">2</em>건</span>
+          <span class="bp-next"><span data-bind="badge.next_tier">꽃</span>까지 <span data-bind="badge.next_threshold">3</span>건</span>
         </div>
-        <div class="bp-bar"><div class="bp-fill"></div></div>
+        <div class="bp-bar"><div class="bp-fill" data-bind="badge.progress_pct" data-bind-attr="style:width:{badge.progress_pct}%"></div></div>
       </div>
       <div class="badge-grid">
         <div class="badge-item">
@@ -1175,5 +1115,7 @@ Object.assign(window, {
 })();
 </script>
 <script src="design-nav.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootMy());</script>
 </body>
 </html>

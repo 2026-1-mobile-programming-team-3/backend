@@ -332,6 +332,24 @@
     }
   };
 
+  // ─── Page boot: 내정보 ────────────────────────────────────────────────────
+  PreviewApp.bootMy = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+    try {
+      const [me, stats, author_matches, applicant_matches] = await Promise.all([
+        API.get("/api/v1/users/me"),
+        API.get("/api/v1/users/me/activity-stats"),
+        API.get("/api/v1/users/me/matches?role=author&size=3"),
+        API.get("/api/v1/users/me/matches?role=applicant&size=3"),
+      ]);
+      const combined = { ...me, ...stats, author_matches, applicant_matches };
+      Bind.apply(document, combined);
+    } catch (err) {
+      Toast.error(`내 정보 로딩 실패: ${err.message}`);
+    }
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;
