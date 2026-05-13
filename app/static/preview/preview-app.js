@@ -524,35 +524,66 @@
   PreviewApp.bootMap = async function () {
     if (!Auth.requireLogin()) return;
     DebugPanel.mount();
-    // 시흥시 정왕동 기준 좌표 default
-    const lat = 37.3451, lng = 126.7322, radius = 5000;
-    async function loadNearby() {
+
+    const mapCanvas = document.getElementById('kakao-map-canvas');
+    if (mapCanvas) mapCanvas.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#B8D9D9,#D4E8C4);font-size:13px;font-weight:700;color:rgba(30,18,10,0.4);">지도 준비 중</div>';
+
+    let userLat = 37.3451, userLng = 126.7322;
+    const radius = 5000;
+    let currentCat = '';
+
+    async function loadNearby(cat) {
+      const catQs = cat ? `&category=${cat}` : '';
       try {
-        const data = await API.get(`/api/v1/maps/stores?lat=${lat}&lng=${lng}&radius=${radius}`);
+        const data = await API.get(`/api/v1/maps/stores?lat=${userLat}&lng=${userLng}&radius=${radius}${catQs}`);
         Bind.apply(document, data);
+        document.querySelectorAll('#store-list a.place-row').forEach((a) => {
+          const id = a.dataset.storeId;
+          if (id) a.href = `store-detail.html?id=${id}`;
+        });
       } catch (err) {
         Toast.error(`매장 로딩 실패: ${err.message}`);
       }
     }
+
     async function loadSearch(keyword) {
       try {
         const data = await API.get(`/api/v1/maps/stores/search?keyword=${encodeURIComponent(keyword)}`);
-        // search 응답은 { results: [...] } → stores 키로 매핑
-        Bind.apply(document, { stores: (data.results || []).map((r) => ({ ...r, distance_m: "—" })) });
+        Bind.apply(document, { stores: (data.results || []).map((r) => ({ ...r, distance_m: '—' })) });
       } catch (err) {
         Toast.error(`검색 실패: ${err.message}`);
       }
     }
-    const input = document.getElementById("map-search-input");
-    if (input) {
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { userLat = pos.coords.latitude; userLng = pos.coords.longitude; loadNearby(currentCat); },
+        () => {},
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 300000 }
+      );
+    }
+
+    const searchInput = document.getElementById('map-search-input');
+    if (searchInput) {
       let timer = null;
-      input.addEventListener("input", () => {
+      searchInput.addEventListener('input', () => {
         clearTimeout(timer);
-        const v = input.value.trim();
-        timer = setTimeout(() => v ? loadSearch(v) : loadNearby(), 300);
+        const v = searchInput.value.trim();
+        timer = setTimeout(() => v ? loadSearch(v) : loadNearby(currentCat), 300);
       });
     }
-    await loadNearby();
+
+    const CAT_MAP = { 전체:'', 카페:'CAFE', 공원:'PARK', 병원:'VET', 미용:'GROOMING', 식당:'RESTAURANT' };
+    document.querySelectorAll('.chips-row .chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chips-row .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentCat = CAT_MAP[chip.textContent.trim()] ?? '';
+        loadNearby(currentCat);
+      });
+    });
+
+    await loadNearby(currentCat);
   };
 
   // ─── Page boot: 채팅 ──────────────────────────────────────────────────────

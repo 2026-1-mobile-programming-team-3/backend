@@ -117,7 +117,7 @@
     #mapSheet {
       position: absolute; left: 0; right: 0; bottom: 0;
       z-index: 35;
-      background: #F5EDDE;
+      background: #FFFFFF;
       border-radius: 28px 28px 0 0;
       box-shadow:
         0 -2px 0 rgba(255,255,255,0.55),
@@ -140,7 +140,7 @@
       display: flex; justify-content: space-between; align-items: center;
     }
     .sheet-title { font-size: 17px; font-weight: 900; letter-spacing: -0.04em; color: #1E120A; }
-    .sheet-title em { color: #C9476A; }
+    .sheet-title em { color: #F04270; }
     .sheet-sort { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: #8A6E58; background: none; border: none; cursor: pointer; }
     .sheet-sort i { font-size: 13px; }
 
@@ -166,13 +166,13 @@
       display: flex; align-items: center; justify-content: center;
       font-variant-numeric: tabular-nums;
     }
-    .place-row:first-child .place-rank { background: linear-gradient(135deg, #D08A4E, #C9476A); box-shadow: 0 2px 8px rgba(208,138,78,0.32); }
+    .place-row:first-child .place-rank { background: #F04270; box-shadow: 0 2px 8px rgba(240,66,112,0.32); }
     .place-row-body { flex: 1; min-width: 0; }
     .place-row-title { font-size: 14.5px; font-weight: 800; letter-spacing: -0.03em; color: #1E120A; }
     .place-row-meta { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: #8A6E58; margin-top: 2px; }
     .place-row-meta i { font-size: 11px; }
     .place-rate { display: inline-flex; align-items: center; gap: 2px; color: #4A3020; font-weight: 700; margin-left: 4px; }
-    .place-rate i { font-size: 11px; color: #C9476A; fill: #C9476A; }
+    .place-rate i { font-size: 11px; color: #FFB800; }
     .place-heart {
       width: 36px; height: 36px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
@@ -217,7 +217,7 @@
   <!-- 지도 레이어 -->
   <div id="mapLayer">
     <iframe id="mapIframe" src="https://map.kakao.com/link/map/시흥시 정왕동,37.3447,126.7330" title="시흥시 정왕동 지도" loading="lazy" allowfullscreen></iframe>
-    <div id="mapMock">
+    <div id="kakao-map-canvas" style="width:100%;height:100%;overflow:hidden;border-radius:var(--r-xl)">
       <div class="mm-grid"></div>
       <div class="mm-road h fat" style="top:42%"></div>
       <div class="mm-road h" style="top:24%"></div>
@@ -241,13 +241,13 @@
       <span class="map-searchbar-icon"><i class="ph ph-magnifying-glass"></i></span>
       <input id="map-search-input" type="search" placeholder="매장 · 병원 · 공원 검색" />
     </div>
-    <div class="map-chips">
-      <button class="map-chip active" data-cat="all"><i class="ph ph-squares-four"></i>전체 24</button>
-      <button class="map-chip" data-cat="cafe"><i class="ph ph-coffee"></i>카페</button>
-      <button class="map-chip" data-cat="restaurant"><i class="ph ph-fork-knife"></i>식당</button>
-      <button class="map-chip" data-cat="park"><i class="ph ph-tree"></i>공원</button>
-      <button class="map-chip" data-cat="vet"><i class="ph ph-stethoscope"></i>병원</button>
-      <button class="map-chip" data-cat="grooming"><i class="ph ph-scissors"></i>미용</button>
+    <div class="map-chips chips-row">
+      <button class="map-chip chip active" data-cat="all"><i class="ph ph-squares-four"></i>전체</button>
+      <button class="map-chip chip" data-cat="cafe"><i class="ph ph-coffee"></i>카페</button>
+      <button class="map-chip chip" data-cat="restaurant"><i class="ph ph-fork-knife"></i>식당</button>
+      <button class="map-chip chip" data-cat="park"><i class="ph ph-tree"></i>공원</button>
+      <button class="map-chip chip" data-cat="vet"><i class="ph ph-stethoscope"></i>병원</button>
+      <button class="map-chip chip" data-cat="grooming"><i class="ph ph-scissors"></i>미용</button>
     </div>
   </div>
 
@@ -265,17 +265,23 @@
       <span class="sheet-title">주변 매장 <em>24곳</em></span>
       <button class="sheet-sort"><i class="ph ph-arrows-down-up"></i>거리순</button>
     </div>
-    <div class="sheet-scroll">
-      <div class="map-fallback-list" data-bind-each="stores" data-template="#tmpl-store"></div>
+    <div class="sheet-scroll" id="sheetScroll">
+      <template id="tmpl-store-row">
+        <a class="place-row" href="#">
+          <span class="place-rank">—</span>
+          <div class="place-row-body">
+            <div class="place-row-title" data-bind="name">—</div>
+            <div class="place-row-meta">
+              <span data-bind="category">—</span>
+              <span> · </span>
+              <span data-bind="distance_m">—</span>m
+            </div>
+          </div>
+          <button class="place-heart" type="button"><i class="ph ph-heart"></i></button>
+        </a>
+      </template>
+      <div id="store-list" data-bind-each="stores" data-template="#tmpl-store-row"></div>
     </div>
-    <template id="tmpl-store">
-      <a class="store-card" data-bind-attr="href:#store-{store_id}">
-        <div class="sc-name" data-bind="name">—</div>
-        <div class="sc-cat"  data-bind="category">—</div>
-        <div class="sc-addr" data-bind="address">—</div>
-        <div class="sc-dist"><span data-bind="distance_m">—</span>m</div>
-      </a>
-    </template>
   </div>
 
   <!-- V3 독 -->
@@ -902,21 +908,13 @@ Object.assign(window, {
   iframe.style.transition = 'opacity 0.5s';
   iframe.addEventListener('load', () => { setTimeout(() => { iframe.style.opacity = '1'; }, 300); });
 
-  // chips
-  document.querySelectorAll('.map-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-    });
-  });
-
   // hearts
   document.querySelectorAll('.place-heart').forEach(btn => {
     btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); btn.classList.toggle('liked'); });
   });
 
   // 독 네비
-  const TAB_URLS = { home:'index.html', match:'match.html', map:'map.html', news:'#', my:'my.html' };
+  const TAB_URLS = { home:'index.html', match:'match.html', map:'map.html', news:'news.html', my:'my.html' };
   document.querySelectorAll('.v3-nav-item').forEach(item => {
     if (item.dataset.tab === 'map') item.classList.add('active');
     item.addEventListener('click', () => {
