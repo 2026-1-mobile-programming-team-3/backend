@@ -47,8 +47,13 @@
       this.set(data.access_token, data.refresh_token);
       return data;
     },
-    logout() {
-      API.post('/api/v1/auth/logout', {}).catch(() => {});
+    async logout() {
+      const refresh = this.getRefresh();
+      if (refresh) {
+        try {
+          await API.post('/api/v1/auth/logout', { refresh_token: refresh });
+        } catch (e) {}
+      }
       this.clear();
       window.location.href = 'login.html';
     },
@@ -1313,9 +1318,9 @@
       };
       try {
         if (isEdit) {
-          await API.patch(`/api/v1/pets/${petId}`, body);
+          await API.patch(`/api/v1/users/me/pets/${petId}`, body);
         } else {
-          await API.post('/api/v1/pets', body);
+          await API.post('/api/v1/users/me/pets', body);
         }
         Toast.ok(isEdit ? '수정되었습니다.' : '반려동물이 추가되었습니다.');
         setTimeout(() => { location.href = 'my.html'; }, 800);
@@ -1325,7 +1330,7 @@
     document.getElementById('btn-delete')?.addEventListener('click', async () => {
       if (!confirm('반려동물을 삭제할까요?')) return;
       try {
-        await API.delete(`/api/v1/pets/${petId}`);
+        await API.delete(`/api/v1/users/me/pets/${petId}`);
         Toast.ok('삭제되었습니다.');
         setTimeout(() => { location.href = 'my.html'; }, 800);
       } catch (err) { Toast.error(err.message); }
