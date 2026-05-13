@@ -50,30 +50,57 @@
     /* ── 반려동물 ── */
     .section-label { font-size: 11px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-mute); padding: 24px 24px 10px; }
 
-    .pet-card {
-      margin: 0 24px;
-      padding: 16px 18px;
+    /* 가로 스크롤 카드 */
+    .pets-scroll {
+      display: flex; gap: 12px;
+      padding: 0 24px 4px;
+      overflow-x: auto; scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pets-scroll::-webkit-scrollbar { display: none; }
+
+    .pet-v-card {
+      flex-shrink: 0; width: 96px;
+      padding: 14px 8px 12px;
+      border-radius: 20px;
+      border: 2px solid var(--line);
       background: var(--card);
-      border-radius: var(--r-xl);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow-md);
-      display: flex; align-items: center; gap: 14px;
-      transition: transform 0.2s var(--spring);
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      position: relative; cursor: pointer;
+      transition: border-color 0.18s, transform 0.18s var(--spring);
     }
-    .pet-card:active { transform: scale(0.985); }
-    .pet-icon {
-      width: 50px; height: 50px; border-radius: 16px;
-      background: linear-gradient(135deg, var(--sand-soft), var(--accent-soft));
+    .pet-v-card:active { transform: scale(0.96); }
+    .pet-v-card.selected { border-color: var(--accent); }
+
+    .pet-v-check {
+      position: absolute; top: 7px; right: 7px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: #fff;
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      font-size: 11px;
     }
-    .pet-icon i { font-size: 24px; color: var(--sand); stroke-width: 1.8; }
-    .pet-info { flex: 1; }
-    .pet-name { font-size: 16px; font-weight: 900; letter-spacing: -0.035em; color: var(--ink); }
-    .pet-detail { font-size: 12px; font-weight: 600; color: var(--ink-mute); margin-top: 2px; }
-    .pet-add { padding: 7px 14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; font: inherit; font-size: 12.5px; font-weight: 800; color: var(--ink-soft); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: background 0.15s; }
-    .pet-add i { font-size: 13px; }
-    .pet-add:active { background: var(--line); }
+    .pet-v-icon {
+      width: 54px; height: 54px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; margin-bottom: 2px;
+    }
+    .pet-v-icon.cat { background: var(--raspberry-soft); color: var(--raspberry); }
+    .pet-v-icon.dog { background: var(--accent-soft); color: var(--accent); }
+    .pet-v-name { font-size: 13px; font-weight: 900; letter-spacing: -0.03em; color: var(--ink); text-align: center; }
+    .pet-v-info { font-size: 10.5px; font-weight: 600; color: var(--ink-mute); text-align: center; line-height: 1.3; }
+
+    .pet-v-add {
+      flex-shrink: 0; width: 96px; min-height: 148px;
+      border-radius: 20px;
+      border: 2px dashed var(--line-mid);
+      background: transparent;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+      cursor: pointer; color: var(--ink-mute);
+      font: inherit; font-size: 11.5px; font-weight: 700; text-align: center; line-height: 1.5;
+      transition: background 0.15s, transform 0.18s var(--spring);
+    }
+    .pet-v-add:active { background: var(--bg-2); transform: scale(0.96); }
+    .pet-v-add i { font-size: 22px; color: var(--ink-ghost); }
 
     /* ── 활동 통계 ── */
     .stats-grid {
@@ -287,18 +314,23 @@
         <div class="profile-name" data-bind="nickname">댕댕이주인</div>
         <div class="profile-region"><i class="ph ph-map-pin"></i><span data-bind="region_dong">정왕동</span></div>
       </div>
-      <button class="profile-edit">편집</button>
+      <button class="profile-edit" onclick="location.href='profile-edit.html'">편집</button>
     </div>
 
     <!-- 반려동물 -->
     <div class="section-label anim-fade-slide-up delay-2">내 반려동물</div>
-    <div class="pet-card anim-fade-slide-up delay-2">
-      <div class="pet-icon"><i class="ph ph-paw-print"></i></div>
-      <div class="pet-info">
-        <div class="pet-name" data-bind="pets.0.name">파댕이</div>
-        <div class="pet-detail"><span data-bind="pets.0.species">강아지</span> · <span data-bind="pets.0.age">3</span>살 · <span data-bind="pets.0.gender">수컷</span></div>
+    <template id="tmpl-pet">
+      <div class="pet-v-card">
+        <div class="pet-v-icon"><i class="ph ph-paw-print"></i></div>
+        <div class="pet-v-name" data-bind="name">—</div>
+        <div class="pet-v-species" data-bind="species">—</div>
       </div>
-      <a class="pet-add" href="my.html"><i class="ph-bold ph-list"></i>전체 보기</a>
+    </template>
+    <div class="pets-scroll anim-fade-slide-up delay-2" data-bind-each="pets" data-template="#tmpl-pet">
+      <button class="pet-v-add" onclick="location.href='pet-form.html'">
+        <i class="ph ph-plus"></i>
+        <span>반려동물<br>추가</span>
+      </button>
     </div>
 
     <!-- 활동 통계 -->
@@ -321,7 +353,7 @@
     <!-- 내 봉사 요청 -->
     <div class="section-label anim-fade-slide-up delay-3" style="display:flex;align-items:center;justify-content:space-between;padding-right:24px">
       내 봉사 요청
-      <a href="my.html" style="font-size:11px;font-weight:800;color:var(--raspberry);letter-spacing:.01em;text-decoration:none;display:flex;align-items:center;gap:3px">전체 보기<i class="ph-bold ph-arrow-right" style="font-size:11px"></i></a>
+      <a href="my-matches.html" style="font-size:11px;font-weight:800;color:var(--raspberry);letter-spacing:.01em;text-decoration:none;display:flex;align-items:center;gap:3px">전체 보기<i class="ph-bold ph-arrow-right" style="font-size:11px"></i></a>
     </div>
     <div class="my-requests anim-fade-slide-up delay-3" data-bind-each="author_matches.items" data-template="#tmpl-author-match"></div>
 
@@ -419,7 +451,7 @@
     <!-- 메뉴 그룹 1 -->
     <div class="section-label anim-fade-slide-up delay-4">내 기록</div>
     <div class="menu-group anim-fade-slide-up delay-4">
-      <a class="menu-row" href="my.html">
+      <a class="menu-row" href="my-matches.html">
         <span class="menu-icon" style="background:var(--raspberry-dim)"><i class="ph ph-clipboard-text" style="color:var(--raspberry)"></i></span>
         <span class="menu-label">전체 요청 이력</span>
         <span class="menu-badge" style="background:var(--raspberry)">4</span>
@@ -466,7 +498,7 @@
       </a>
     </div>
 
-    <button class="logout-btn anim-fade-slide-up delay-5"><i class="ph-bold ph-sign-out"></i>로그아웃</button>
+    <button class="logout-btn anim-fade-slide-up delay-5" onclick="Auth.logout()"><i class="ph-bold ph-sign-out"></i>로그아웃</button>
     <div class="safe-area"></div>
   </main>
 
@@ -1087,7 +1119,7 @@ Object.assign(window, {
 </script>
 <script>
 (() => {
-  const TAB_URLS = { home:'index.html', match:'match.html', map:'map.html', news:'#', my:'my.html' };
+  const TAB_URLS = { home:'index.html', match:'match.html', map:'map.html', news:'news.html', my:'my.html' };
   document.querySelectorAll('.v3-nav-item').forEach(item => {
     if (item.dataset.tab === 'my') item.classList.add('active');
     item.addEventListener('click', () => {
