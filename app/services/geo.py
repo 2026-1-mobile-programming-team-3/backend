@@ -23,7 +23,20 @@ async def reverse_geocode(lat: float, lng: float) -> ReverseGeocodeResponse:
     except httpx.HTTPError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"카카오 지도 API 호출 실패: {e}") from e
     if r.status_code != 200:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"카카오 응답 오류: {r.status_code}")
+        # 카카오 에러 본문(errorType, message)을 그대로 전달해 디버깅을 쉽게.
+        try:
+            err_body = r.json()
+            kakao_msg = err_body.get("message") or err_body.get("msg") or ""
+            kakao_type = err_body.get("errorType") or ""
+            parts = [f"카카오 {r.status_code}"]
+            if kakao_type:
+                parts.append(kakao_type)
+            if kakao_msg:
+                parts.append(kakao_msg)
+            detail = " — ".join(parts)
+        except Exception:
+            detail = f"카카오 응답 오류: {r.status_code}"
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
     data = r.json()
     docs = data.get("documents") or []
     if not docs:
