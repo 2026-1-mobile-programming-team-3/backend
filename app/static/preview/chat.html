@@ -187,6 +187,47 @@
     }
     .cib-send:active { transform: scale(0.88); }
     .cib-send i { font-size: 18px; }
+
+    /* ── 동적 채팅 메시지 영역 ── */
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+      background: var(--bg);
+    }
+    .ch-msg { max-width: 78%; display: flex; }
+    .ch-msg.mine { align-self: flex-end; }
+    .ch-msg.other { align-self: flex-start; }
+    .ch-bubble {
+      padding: 9px 13px;
+      border-radius: 14px;
+      font-size: 13.5px;
+      line-height: 1.45;
+    }
+    .ch-msg.mine .ch-bubble  { background: var(--accent); color: #fff; }
+    .ch-msg.other .ch-bubble { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+    .chat-input-bar {
+      display: flex; gap: 8px;
+      padding: 10px 14px 16px;
+      border-top: 1px solid var(--line);
+      background: var(--card);
+    }
+    #chat-input {
+      flex: 1; padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--bg);
+      font-size: 13.5px;
+      outline: none;
+    }
+    .ch-send {
+      padding: 9px 18px;
+      border-radius: 999px;
+      background: var(--raspberry); color: #fff;
+      font-weight: 900; font-size: 13px;
+      border: none; cursor: pointer;
+    }
   </style>
 </head>
 <body data-tab="match">
@@ -199,14 +240,10 @@
         <i class="ph-bold ph-arrow-left"></i>
       </button>
       <div class="ch-vol">
-        <div class="ch-avatar" style="background:linear-gradient(135deg,var(--mint),#5A8A50)">봉</div>
+        <div class="ch-avatar" style="background:linear-gradient(135deg,var(--mint),#5A8A50)">A</div>
         <div>
-          <div class="ch-name">봉사천사</div>
-          <div class="ch-meta">
-            <i class="ph-fill ph-star" style="color:var(--raspberry)"></i>4.9
-            <span style="color:var(--line-mid)">·</span>봉사 12건
-            <span style="color:var(--line-mid)">·</span>1.2km
-          </div>
+          <div class="ch-name" data-bind="opponent.nickname">—</div>
+          <div class="ch-meta" data-bind="opponent.status_label">—</div>
         </div>
       </div>
       <button class="btn-accept anim-scale-in delay-1" id="acceptBtn">수락</button>
@@ -225,123 +262,20 @@
     </a>
 
     <!-- 채팅 메시지 -->
-    <div class="chat-area">
-      <div class="date-divider">오늘</div>
+    <div id="chat-messages" class="chat-messages"></div>
 
-      <div class="msg-row received anim-fade-slide-up delay-2">
-        <div class="msg-av" style="background:linear-gradient(135deg,var(--mint),#5A8A50)">봉</div>
-        <div class="msg-content">
-          <div class="bubble">안녕하세요! 봉사 신청했어요. 5월 10일 오전에 차량으로 이동 도움이 가능합니다 😊</div>
-          <div class="msg-time">오전 9:35</div>
-        </div>
-      </div>
-
-      <div class="msg-row sent anim-fade-slide-up delay-3">
-        <div class="msg-content">
-          <div class="bubble">감사해요! 혹시 강아지가 차에 타도 괜찮으신가요? 중형견이에요.</div>
-          <div class="msg-time">오전 9:36</div>
-        </div>
-      </div>
-
-      <div class="msg-row received anim-fade-slide-up delay-3">
-        <div class="msg-av" style="background:linear-gradient(135deg,var(--mint),#5A8A50)">봉</div>
-        <div class="msg-content">
-          <div class="bubble">네, 문제없어요! 제 차가 SUV라 넓어서 편히 오실 수 있어요 🐕</div>
-          <div class="msg-time">오전 9:38</div>
-        </div>
-      </div>
-
-      <div class="msg-row sent anim-fade-slide-up delay-4">
-        <div class="msg-content">
-          <div class="bubble">정말 다행이에요. 그럼 당일 정왕동 주민센터 앞에서 만나면 될까요?</div>
-          <div class="msg-time">오전 9:40</div>
-        </div>
-      </div>
-
-      <div class="msg-row received anim-fade-slide-up delay-4">
-        <div class="msg-av" style="background:linear-gradient(135deg,var(--mint),#5A8A50)">봉</div>
-        <div class="msg-content">
-          <div class="bubble">네, 정왕동 주민센터 정문 앞에서 오전 10시에 뵙겠습니다!</div>
-          <div class="msg-time">오전 9:42</div>
-        </div>
-      </div>
-
-      <div class="sys-notice anim-fade-slide-up delay-5">
-        <i class="ph-bold ph-shield-check"></i>
-        수락 전까지 상세 연락처는 공개되지 않아요. 대화 후 수락하면 매칭이 확정돼요.
-      </div>
-    </div>
-
-    <div class="safe-area" style="height:80px"></div>
   </main>
 
   <!-- 메시지 입력 -->
-  <div class="chat-input-bar anim-fade-slide-up delay-5">
-    <input class="cib-field" type="text" placeholder="메시지를 입력하세요..." />
-    <button class="cib-send"><i class="ph-bold ph-paper-plane-tilt"></i></button>
-  </div>
+  <form id="chat-input-form" class="chat-input-bar">
+    <input id="chat-input" type="text" placeholder="메시지 입력" autocomplete="off" />
+    <button type="submit" class="ch-send">전송</button>
+  </form>
 </div>
 
 <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
-<script>
-(() => {
-  const TAB_URLS = { home:'index-v3.html', match:'match-v3.html', map:'map-v3.html', news:'news-v3.html', my:'my-v3.html' };
-
-  document.querySelectorAll('.v3-nav-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const url = TAB_URLS[item.dataset.tab];
-      if (!url) return;
-      if (window !== window.top) { location.href = url; return; }
-      const app = document.querySelector('.app');
-      app.style.transition = 'transform 0.28s cubic-bezier(0.32,0.72,0.24,1),opacity 0.22s ease';
-      app.style.transform = 'translateX(-60px)'; app.style.opacity = '0';
-      setTimeout(() => { location.href = url; }, 220);
-    });
-  });
-
-  // 수락 버튼
-  const acceptBtn = document.getElementById('acceptBtn');
-  acceptBtn.addEventListener('click', () => {
-    if (acceptBtn.classList.contains('done')) return;
-    acceptBtn.classList.add('done');
-    acceptBtn.innerHTML = '<i class="ph-bold ph-check"></i> 수락됨';
-
-    // 요청 상태 업데이트
-    const statusEl = document.querySelector('.rs-status');
-    if (statusEl) {
-      statusEl.innerHTML = '<div class="rs-status-dot" style="background:var(--mint)"></div>수락됨';
-      statusEl.style.background = 'var(--mint-dim)';
-      statusEl.style.color = 'var(--mint)';
-    }
-
-    // 시스템 메시지 추가
-    const notice = document.querySelector('.sys-notice');
-    if (notice) {
-      notice.innerHTML = '<i class="ph-bold ph-check-circle" style="color:var(--mint)"></i>매칭이 확정됐어요! 봉사자가 약속 장소로 올 예정이에요.';
-    }
-  });
-
-  // Enter로 전송
-  const field = document.querySelector('.cib-field');
-  const sendBtn = document.querySelector('.cib-send');
-  function sendMsg() {
-    const text = field.value.trim();
-    if (!text) return;
-    const area = document.querySelector('.chat-area');
-    const safeArea = document.querySelector('.safe-area');
-    const row = document.createElement('div');
-    row.className = 'msg-row sent';
-    row.innerHTML = `<div class="msg-content"><div class="bubble">${text}</div><div class="msg-time">방금</div></div>`;
-    area.insertBefore(row, safeArea || area.lastElementChild);
-    field.value = '';
-    // 스크롤 하단으로
-    const screen = document.getElementById('screen');
-    screen.scrollTop = screen.scrollHeight;
-  }
-  sendBtn.addEventListener('click', sendMsg);
-  field.addEventListener('keydown', e => { if (e.key === 'Enter') sendMsg(); });
-})();
-</script>
 <script src="design-nav.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootChat());</script>
 </body>
 </html>

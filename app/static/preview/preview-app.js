@@ -410,6 +410,86 @@
     await loadNearby();
   };
 
+  // ─── Page boot: 채팅 ──────────────────────────────────────────────────────
+  PreviewApp.bootChat = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+    const params = new URLSearchParams(location.search);
+    let appId = parseInt(params.get("application_id"), 10);
+    let matchId = parseInt(params.get("match_id"), 10);
+    let me = null;
+    try {
+      me = await API.get("/api/v1/users/me");
+    } catch (err) { Toast.error(`내 정보 실패: ${err.message}`); return; }
+
+    if (!appId || !matchId) {
+      // fallback: 최근 본인 application
+      try {
+        const mine = await API.get("/api/v1/users/me/matches?role=applicant&size=1");
+        const first = mine.items?.[0];
+        if (first && first.my_application_status !== "REJECTED") {
+          matchId = first.match_id;
+          const list = await API.get(`/api/v1/matches/${matchId}/applications`);
+          const own = list.items?.find((a) => a.applicant?.applicant_id === me.id);
+          appId = own?.application_id;
+        }
+      } catch { /* fallback 실패는 무시 */ }
+    }
+    if (!appId || !matchId) {
+      Toast.error("채팅방을 결정할 수 없습니다. ?match_id=&application_id= 쿼리를 붙여 주세요.");
+      return;
+    }
+
+    const listEl = document.getElementById("chat-messages");
+    function escapeHtmlLocal(s) {
+      return String(s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+    }
+    function renderMsg(msg) {
+      const row = document.createElement("div");
+      row.className = "ch-msg " + (msg.sender_id === me.id ? "mine" : "other");
+      row.innerHTML = `<div class="ch-bubble">${escapeHtmlLocal(msg.content)}</div>`;
+      listEl.appendChild(row);
+      listEl.scrollTop = listEl.scrollHeight;
+    }
+
+    try {
+      const initial = await API.get(`/api/v1/matches/${matchId}/applications/${appId}/messages?size=30`);
+      // created_at DESC → 화면은 오래된→최신 → reverse
+      [...(initial.items || [])].reverse().forEach(renderMsg);
+    } catch (err) {
+      Toast.error(`메시지 로딩 실패: ${err.message}`);
+    }
+
+    const seen = new Set();
+    WS.onMessage((evt) => {
+      if (evt?.type === "message.created" && !seen.has(evt.id)) {
+        seen.add(evt.id);
+        renderMsg(evt);
+      }
+    });
+    WS.connect(appId);
+
+    document.getElementById("chat-input-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const input = document.getElementById("chat-input");
+      const content = input.value.trim();
+      if (!content) return;
+      input.value = "";
+      try {
+        const sent = await API.post(
+          `/api/v1/matches/${matchId}/applications/${appId}/messages`,
+          { content },
+        );
+        if (!seen.has(sent.id)) {
+          seen.add(sent.id);
+          renderMsg(sent);
+        }
+      } catch (err) {
+        Toast.error(`전송 실패: ${err.message}`);
+      }
+    });
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;
