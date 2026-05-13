@@ -613,6 +613,78 @@
     });
   };
 
+  // ─── Page boot: 알림 ──────────────────────────────────────────────────────
+  PreviewApp.bootNotifications = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const CAT_MAP = { 전체:'', 매칭:'MATCH', 소식:'NEWS', 시스템:'SYSTEM' };
+    let currentCat = '';
+
+    async function load(cat) {
+      const qs = cat ? `?category=${cat}` : '';
+      try {
+        const data = await API.get(`/api/v1/notifications${qs}`);
+        const listEl = document.getElementById('notif-list');
+        const tmpl = document.getElementById('tmpl-notif');
+        if (!listEl || !tmpl) return;
+        listEl.innerHTML = '';
+        (data.items || []).forEach((item) => {
+          const node = tmpl.content.cloneNode(true);
+          const row = node.querySelector('.notif-item');
+          if (row) {
+            if (!item.is_read) row.classList.add('unread');
+            row.addEventListener('click', async () => {
+              if (!item.is_read) {
+                await API.post(`/api/v1/notifications/${item.id}/read`, {}).catch(() => {});
+                row.classList.remove('unread');
+              }
+              if (item.link) location.href = item.link;
+            });
+          }
+          const titleEl = node.querySelector('.notif-title');
+          if (titleEl) titleEl.textContent = item.title;
+          const bodyEl = node.querySelector('.notif-body');
+          if (bodyEl) bodyEl.textContent = item.body;
+          const timeEl = node.querySelector('.notif-time');
+          if (timeEl) {
+            const d = new Date(item.created_at);
+            timeEl.textContent = `${d.getMonth()+1}.${d.getDate()}`;
+          }
+          const iconEl = node.querySelector('.notif-icon');
+          if (iconEl) {
+            const cls = { MATCH:'type-match', NEWS:'type-news', SYSTEM:'type-sys', VOLUNTEER:'type-vol' };
+            iconEl.className = `notif-icon ${cls[item.category] || ''}`;
+          }
+          listEl.appendChild(node);
+        });
+      } catch (err) {
+        Toast.error(`알림 로딩 실패: ${err.message}`);
+      }
+    }
+
+    await load(currentCat);
+
+    document.querySelectorAll('.chips-row .chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('.chips-row .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentCat = CAT_MAP[chip.textContent.trim()] ?? '';
+        load(currentCat);
+      });
+    });
+
+    document.getElementById('btn-read-all')?.addEventListener('click', async () => {
+      try {
+        await API.patch('/api/v1/notifications/read-all', {});
+        document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+        Toast.ok('모두 읽음 처리되었습니다.');
+      } catch (err) {
+        Toast.error(err.message);
+      }
+    });
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;

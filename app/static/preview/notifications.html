@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#FEFEFE" />
+  <title>시흥가개 — 알림</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    /* ── 헤더 ── */
+    .notif-header {
+      display: flex; align-items: center; gap: 4px;
+      padding: 14px 16px 12px;
+      position: sticky; top: 0; z-index: 20;
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .notif-back {
+      width: 36px; height: 36px; border-radius: 12px;
+      background: var(--card); border: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink); box-shadow: var(--shadow-sm);
+      cursor: pointer; flex-shrink: 0;
+      font: inherit; transition: transform 0.18s var(--spring);
+      text-decoration: none;
+    }
+    .notif-back:active { transform: scale(0.88); }
+    .notif-back i { font-size: 17px; }
+    .notif-title {
+      flex: 1; text-align: center;
+      font-size: 16px; font-weight: 900;
+      letter-spacing: -0.035em; color: var(--ink);
+    }
+    .notif-all-read {
+      font-size: 13px; font-weight: 700;
+      color: var(--ink-mute); background: none; border: none;
+      cursor: pointer; padding: 4px 8px;
+      font: inherit; font-size: 13px; font-weight: 700;
+      white-space: nowrap;
+      transition: color 0.15s;
+    }
+    .notif-all-read:active { color: var(--ink); }
+
+    /* ── 필터 칩 ── */
+    .notif-chips {
+      display: flex; gap: 7px;
+      padding: 14px 16px 10px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .notif-chips::-webkit-scrollbar { display: none; }
+    .notif-chip {
+      flex-shrink: 0;
+      padding: 8px 18px; border-radius: 999px;
+      font: inherit; font-size: 13px; font-weight: 700;
+      letter-spacing: -0.02em;
+      border: 1px solid var(--line);
+      background: var(--card); color: var(--ink-soft);
+      cursor: pointer; white-space: nowrap;
+      transition: background 0.18s var(--ease-out), color 0.18s, transform 0.15s var(--spring);
+    }
+    .notif-chip:active { transform: scale(0.94); }
+    .notif-chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    /* ── 알림 목록 ── */
+    .notif-list {
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 8px 16px;
+    }
+    .notif-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--r-lg);
+      background: var(--card);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow-xs);
+      cursor: pointer;
+      transition: transform 0.18s var(--spring);
+      text-decoration: none; color: inherit;
+    }
+    .notif-item.unread {
+      background: var(--raspberry-soft);
+      border-color: rgba(240,66,112,0.14);
+    }
+    .notif-item:active { transform: scale(0.985); }
+
+    /* 아이콘 원 */
+    .notif-icon-wrap {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--card); border: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; box-shadow: var(--shadow-xs);
+    }
+    .notif-icon-wrap i { font-size: 18px; }
+    .notif-icon-wrap.type-match   { color: var(--raspberry); }
+    .notif-icon-wrap.type-vol     { color: var(--mint); }
+    .notif-icon-wrap.type-news    { color: var(--accent); }
+
+    /* 텍스트 */
+    .notif-content { flex: 1; min-width: 0; }
+    .notif-row1 {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 8px; margin-bottom: 4px;
+    }
+    .notif-item-title {
+      font-size: 14px; font-weight: 900;
+      letter-spacing: -0.03em; color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .notif-time {
+      font-size: 11.5px; font-weight: 700;
+      color: var(--ink-mute); white-space: nowrap; flex-shrink: 0;
+    }
+    .notif-item.unread .notif-time { color: var(--raspberry); }
+    .notif-body {
+      font-size: 12.5px; font-weight: 600;
+      color: var(--ink-soft); line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+<div class="app" id="appRoot">
+  <div class="screen" style="display:flex;flex-direction:column;">
+
+    <!-- 헤더 -->
+    <header class="notif-header anim-fade-slide-up">
+      <a class="notif-back" href="index.html" aria-label="뒤로">
+        <i class="ph ph-caret-left"></i>
+      </a>
+      <h1 class="notif-title">알림</h1>
+      <button class="notif-all-read" id="btn-read-all">모두 읽음</button>
+    </header>
+
+    <!-- 필터 칩 -->
+    <div class="chips-row notif-chips anim-fade-slide-up delay-1">
+      <button class="chip notif-chip active" data-filter="all">전체</button>
+      <button class="chip notif-chip" data-filter="match">매칭</button>
+      <button class="chip notif-chip" data-filter="news">소식</button>
+      <button class="chip notif-chip" data-filter="system">시스템</button>
+    </div>
+
+    <!-- 알림 목록 -->
+    <template id="tmpl-notif">
+      <div class="notif-item">
+        <div class="notif-icon type-match"><i class="ph ph-handshake"></i></div>
+        <div class="notif-body-wrap">
+          <div class="notif-title"></div>
+          <div class="notif-body"></div>
+        </div>
+        <span class="notif-time"></span>
+      </div>
+    </template>
+    <div id="notif-list" class="notif-list anim-fade-slide-up delay-2"></div>
+
+    <div class="safe-area"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>
+(() => {
+  /* 페이지 진입 애니 */
+  const fromTab = sessionStorage.getItem('sg_from_tab');
+  if (fromTab) {
+    sessionStorage.removeItem('sg_from_tab');
+    const app = document.querySelector('.app');
+    app.style.transition = 'none';
+    app.style.transform = 'translateX(40px)';
+    app.style.opacity = '0';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      app.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1),opacity 0.24s ease';
+      app.style.transform = 'translateX(0)';
+      app.style.opacity = '1';
+    }));
+  }
+})();
+</script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootNotifications());</script>
+</body>
+</html>
