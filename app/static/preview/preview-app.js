@@ -1117,6 +1117,47 @@
     });
   };
 
+  // ─── Page boot: 뉴스 상세 ─────────────────────────────────────────────────
+  PreviewApp.bootNewsDetail = async function () {
+    if (!Auth.requireLogin()) return;
+    DebugPanel.mount();
+
+    const params = new URLSearchParams(location.search);
+    const newsId = params.get('id');
+    if (!newsId) { Toast.error('잘못된 접근입니다.'); return; }
+
+    const CAT_LABEL = { POLICY:'정책', EVENT:'행사', VOLUNTEER:'봉사', SUPPORT:'지원' };
+
+    try {
+      const data = await API.get(`/api/v1/news/${newsId}`);
+      document.title = `시흥가개 — ${data.title}`;
+      Bind.apply(document, {
+        ...data,
+        category_label: CAT_LABEL[data.category] || data.category,
+      });
+
+      const img = document.getElementById('news-hero-img');
+      if (img) {
+        if (data.image_url) { img.src = data.image_url; img.hidden = false; }
+        else img.hidden = true;
+      }
+
+      const bodyEl = document.getElementById('news-body');
+      if (bodyEl && data.content) {
+        bodyEl.innerHTML = data.content
+          .split(/\n\n+/)
+          .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+          .join('');
+      }
+
+      const linkBtn = document.getElementById('btn-official-link');
+      if (linkBtn && data.official_link) {
+        linkBtn.href = data.official_link;
+        linkBtn.hidden = false;
+      }
+    } catch (err) { Toast.error(err.message); }
+  };
+
   // 전역 노출
   window.PreviewApp = PreviewApp;
   window.Auth = Auth;
