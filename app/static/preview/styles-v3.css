@@ -1,0 +1,361 @@
+/* ═══════════════════════════════════════════════════════════
+   시흥가개 V3 — 업그레이드 디자인 시스템
+   Honey Cocoa · SUIT Variable
+   레퍼런스: 토스 여백/타이포 + 당근 따뜻함 + Apple Health 카드
+═══════════════════════════════════════════════════════════ */
+
+/* ── 토큰 ── */
+:root {
+  --bg:                #fefefe;
+  --bg-2:              #EFE5D0;
+  --card:              #FFFFFF;
+  --card-elevated:     #FFFFFF;
+
+  --ink:               #1E120A;
+  --ink-soft:          #4A3020;
+  --ink-mute:          #8A6E58;
+  --ink-ghost:         #C4A88E;
+
+  --accent:            #D08A4E;
+  --accent-soft:       #F2D6B6;
+  --accent-dim:        rgba(208,138,78,0.12);
+  --raspberry:         #C9476A;
+  --raspberry-soft:    #F1C6CF;
+  --raspberry-dim:     rgba(201,71,106,0.10);
+  --mint:              #7A9B6E;
+  --mint-soft:         #CFDDC8;
+  --mint-dim:          rgba(122,155,110,0.12);
+  --sand:              #B89E7E;
+  --sand-soft:         #E5D7C2;
+
+  --line:              rgba(30,18,10,0.07);
+  --line-mid:          rgba(30,18,10,0.12);
+  --line-strong:       rgba(30,18,10,0.20);
+
+  /* 에어리 shadow 시스템 — 토스/Apple 스타일 */
+  --shadow-xs:  0 1px 2px rgba(30,18,10,0.04);
+  --shadow-sm:  0 2px 8px rgba(30,18,10,0.06), 0 1px 2px rgba(30,18,10,0.04);
+  --shadow-md:  0 4px 16px rgba(30,18,10,0.08), 0 2px 4px rgba(30,18,10,0.04);
+  --shadow-lg:  0 8px 32px rgba(30,18,10,0.10), 0 2px 8px rgba(30,18,10,0.06);
+  --shadow-xl:  0 16px 48px rgba(30,18,10,0.12), 0 4px 12px rgba(30,18,10,0.06);
+
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+  --r-2xl: 36px;
+
+  /* Spring 이징 (Android/iOS 모두 지원) */
+  --spring:     cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:    cubic-bezier(0.4, 0, 1, 1);
+  --ease-std:   cubic-bezier(0.32, 0.72, 0.24, 1);
+
+  /* 여백 스케일 (에어리) */
+  --space-xs:  6px;
+  --space-sm:  10px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+}
+
+/* ── 리셋 ── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+em { font-style: normal; font-weight: 900; }
+button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; }
+
+html, body {
+  font-family: 'SUIT Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-feature-settings: "ss01", "ss02";
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  text-wrap: pretty;
+}
+
+body {
+  background: #E8DDD0;
+  min-height: 100vh;
+}
+
+/* Phosphor 아이콘 기본 정렬 */
+[class*="ph"] { vertical-align: -0.15em; flex-shrink: 0; }
+
+/* ── 앱 프레임 ── */
+.app {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+    background: #F0EBE3;
+  }
+  .app {
+    width: 360px;
+    height: min(780px, calc(100vh - 40px));
+    min-height: 0;
+    border-radius: 52px;
+    box-shadow:
+      0 40px 100px rgba(0,0,0,0.22),
+      0 0 0 10px #111,
+      0 0 0 11px rgba(255,255,255,0.06),
+      inset 0 0 0 1px rgba(255,255,255,0.12);
+    overflow: hidden;
+  }
+}
+
+/* ── 스크롤 컨테이너 ── */
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.screen::-webkit-scrollbar { display: none; }
+.safe-area { height: 100px; }
+
+/* ── 공통 섹션 헤드 ── */
+.v3-sh {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px var(--space-lg) 12px;
+  gap: 8px;
+}
+.v3-sh-title {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.v3-sh-title em { color: var(--raspberry); }
+.v3-sh-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.v3-sh-link i { font-size: 13px; }
+
+/* ── 공통 카드 ── */
+.v3-card {
+  background: var(--card);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--line);
+  transition:
+    transform 0.22s var(--spring),
+    box-shadow 0.22s var(--ease-out);
+}
+.v3-card:active {
+  transform: scale(0.975);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── 공통 pill 배지 ── */
+.v3-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* ── 바텀 독 (V3 스타일) ── */
+.v3-dock {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 328px; /* 360px 폰 프레임 - 32px 좌우 여백 */
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 999px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 40;
+  box-shadow:
+    0 2px 4px rgba(30,18,10,0.06),
+    0 8px 32px rgba(30,18,10,0.16),
+    0 0 0 1px rgba(30,18,10,0.04);
+  border: 1px solid rgba(255,255,255,0.8);
+}
+
+@media (min-width: 768px) {
+  /* 데스크탑 폰 프레임 안에서는 absolute로 복귀 */
+  .v3-dock {
+    position: absolute;
+    left: var(--space-md);
+    right: var(--space-md);
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+}
+
+.v3-nav-item {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.22s var(--ease-out),
+    color 0.22s var(--ease-out),
+    width 0.28s var(--ease-out),
+    padding 0.28s var(--ease-out),
+    transform 0.15s var(--spring);
+}
+.v3-nav-item [class*="ph"] { font-size: 22px; flex-shrink: 0; }
+.v3-nav-item span { display: none; }
+.v3-nav-item:active { transform: scale(0.88); }
+
+.v3-nav-item.active {
+  width: auto;
+  padding: 0 18px 0 14px;
+  background: var(--ink);
+  color: #fff;
+}
+.v3-nav-item.active span { display: inline; }
+.v3-nav-item.active [class*="ph"] { /* weight via ph-bold class */ }
+
+/* ── 마이크로 애니메이션 ── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes numCount {
+  from { opacity: 0; transform: translateY(8px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.anim-fade-slide-up  { animation: fadeSlideUp 0.4s var(--ease-out) both; }
+.anim-fade-in        { animation: fadeIn 0.3s var(--ease-out) both; }
+.anim-scale-in       { animation: scaleIn 0.3s var(--spring) both; }
+
+/* 순차 딜레이 */
+.delay-1  { animation-delay: 0.05s; }
+.delay-2  { animation-delay: 0.10s; }
+.delay-3  { animation-delay: 0.15s; }
+.delay-4  { animation-delay: 0.20s; }
+.delay-5  { animation-delay: 0.25s; }
+
+/* ── 터치 리플 ── */
+.v3-ripple {
+  position: relative;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.v3-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(30,18,10,0.06);
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: inherit;
+}
+.v3-ripple:active::after { opacity: 1; }
+
+/* ── 스켈레톤 shimmer ── */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(30,18,10,0.06) 0%,
+    rgba(30,18,10,0.10) 50%,
+    rgba(30,18,10,0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--r-sm);
+}
+
+/* ── 공통 topbar ── */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 18px 24px 12px;
+}
+.tb-left { display: flex; flex-direction: column; gap: 2px; }
+.tb-kicker {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.tb-title {
+  font-size: 28px; font-weight: 900;
+  letter-spacing: -0.05em; color: var(--ink);
+  line-height: 1.06;
+}
+.tb-right { display: flex; align-items: center; gap: 8px; }
+.tb-icon-btn {
+  width: 40px; height: 40px; border-radius: 14px;
+  background: var(--card); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-soft); box-shadow: var(--shadow-sm); cursor: pointer;
+  transition: transform 0.18s var(--spring);
+}
+.tb-icon-btn:active { transform: scale(0.88); }
+.tb-icon-btn i { font-size: 17px; }
+
+/* ── 감소 모션 ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
