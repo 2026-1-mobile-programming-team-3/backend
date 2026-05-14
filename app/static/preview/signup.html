@@ -127,7 +127,7 @@
     const errEl = document.getElementById('errMsg');
     const btn = e.submitter || e.target.querySelector('[type=submit]');
     errEl.textContent = '';
-    btn.disabled = true;
+    const restoreBtn = window.Loading ? Loading.bindButton(btn, '가입 중...') : (btn.disabled = true, () => { btn.disabled = false; });
     try {
       await Auth.signup(payload);
       // signup이 토큰을 반환하지 않으면 Auth.signup이 자동 로그인 시도
@@ -142,7 +142,7 @@
       errEl.textContent = Array.isArray(detail)
         ? '입력 정보를 다시 확인해 주세요. (비밀번호 정책·닉네임 길이 등)'
         : (detail || err.message);
-      btn.disabled = false;
+      restoreBtn();
     }
   });
 })();

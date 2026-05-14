@@ -325,6 +325,100 @@ body {
   border-radius: var(--r-sm);
 }
 
+/* 재사용 스켈레톤 빌딩 블록 */
+.sk-line { height: 12px; border-radius: 6px; }
+.sk-line.sm { height: 10px; }
+.sk-line.lg { height: 16px; }
+.sk-line.xl { height: 22px; }
+.sk-w-30 { width: 30%; }
+.sk-w-40 { width: 40%; }
+.sk-w-50 { width: 50%; }
+.sk-w-60 { width: 60%; }
+.sk-w-70 { width: 70%; }
+.sk-w-80 { width: 80%; }
+.sk-w-90 { width: 90%; }
+.sk-w-100 { width: 100%; }
+.sk-circle { border-radius: 50%; }
+.sk-circle.sm { width: 32px; height: 32px; }
+.sk-circle.md { width: 40px; height: 40px; }
+.sk-circle.lg { width: 56px; height: 56px; }
+.sk-box {
+  border-radius: var(--r-md, 14px);
+  background: linear-gradient(
+    90deg,
+    rgba(30,18,10,0.06) 0%,
+    rgba(30,18,10,0.10) 50%,
+    rgba(30,18,10,0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* 카드 모양의 스켈레톤 (매칭/리스트 카드 자리) */
+.sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl, 20px);
+  box-shadow: var(--shadow-sm, 0 1px 6px rgba(30,18,10,0.05));
+}
+.sk-card-row { display: flex; gap: 12px; align-items: center; }
+.sk-card-body { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+/* 스피너 (인디케이터 + 라벨) */
+@keyframes sg-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.sg-spinner {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(30,18,10,0.12);
+  border-top-color: var(--raspberry, #F04270);
+  animation: sg-spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+.sg-spinner.sm { width: 14px; height: 14px; border-width: 2px; }
+.sg-spinner.lg { width: 32px; height: 32px; border-width: 3px; }
+
+.sg-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 36px 24px;
+  color: var(--ink-mute);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.sg-loading .sg-spinner { width: 28px; height: 28px; border-width: 3px; }
+
+/* 풀스크린 오버레이 (전체 페이지 차단형 로딩) */
+.sg-loading-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(245,237,222,0.78);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.sg-loading-overlay .sg-spinner { width: 34px; height: 34px; border-width: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton, .sk-box, .sg-spinner { animation: none !important; }
+}
+
 /* ── 공통 topbar ── */
 .topbar {
   display: flex;

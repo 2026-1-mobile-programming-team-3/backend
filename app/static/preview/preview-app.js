@@ -333,6 +333,98 @@
     info(text) { this._show(text, "info"); },
   };
 
+  // ─── Loading ───────────────────────────────────────────────────────────────
+  // 스피너/스켈레톤 헬퍼. API 응답 대기 동안 명시적인 로딩 UI를 노출한다.
+  const Loading = {
+    spinnerHTML(label) {
+      const safe = label ? escapeHtml(label) : '';
+      return `<div class="sg-loading"><span class="sg-spinner" aria-hidden="true"></span>${safe ? `<span>${safe}</span>` : ''}</div>`;
+    },
+    /** 카드 목록 자리에 들어가는 스켈레톤 (제목/메타/배지 한 줄씩) */
+    skeletonCards(count = 3) {
+      const card = `
+        <div class="sk-card" aria-hidden="true">
+          <div class="sk-card-row">
+            <div class="sk-box sk-circle sm"></div>
+            <div class="sk-card-body">
+              <div class="sk-box sk-line lg sk-w-70"></div>
+              <div class="sk-box sk-line sm sk-w-40"></div>
+            </div>
+          </div>
+          <div class="sk-box sk-line sm sk-w-90"></div>
+          <div class="sk-box sk-line sm sk-w-50"></div>
+        </div>`;
+      return Array.from({ length: count }, () => card).join('');
+    },
+    /** 한 줄짜리 리스트(알림/채팅 스레드 등) 스켈레톤 */
+    skeletonRows(count = 4) {
+      const row = `
+        <div class="sk-card" style="padding:12px 16px;" aria-hidden="true">
+          <div class="sk-card-row">
+            <div class="sk-box sk-circle md"></div>
+            <div class="sk-card-body">
+              <div class="sk-box sk-line lg sk-w-60"></div>
+              <div class="sk-box sk-line sm sk-w-90"></div>
+            </div>
+          </div>
+        </div>`;
+      return Array.from({ length: count }, () => row).join('');
+    },
+    /** 상세 페이지 본문 자리 스켈레톤 */
+    skeletonDetail() {
+      return `
+        <div class="sk-card" style="margin:0 24px 14px;" aria-hidden="true">
+          <div class="sk-box sk-line xl sk-w-80"></div>
+          <div class="sk-box sk-line sm sk-w-50"></div>
+          <div class="sk-box sk-line sm sk-w-100"></div>
+          <div class="sk-box sk-line sm sk-w-90"></div>
+          <div class="sk-box sk-line sm sk-w-70"></div>
+        </div>`;
+    },
+    /** 대상 컨테이너에 로딩 내용을 채워 넣는다. 컨테이너 자체는 보이게 둠. */
+    fill(target, html) {
+      const el = (typeof target === 'string') ? document.querySelector(target) : target;
+      if (!el) return null;
+      el.dataset.sgLoading = '1';
+      el.innerHTML = html;
+      return el;
+    },
+    /** 로딩으로 채워둔 컨테이너를 비운다. (실제 데이터 렌더 직전에 호출) */
+    clear(target) {
+      const el = (typeof target === 'string') ? document.querySelector(target) : target;
+      if (!el) return;
+      if (el.dataset.sgLoading === '1') {
+        delete el.dataset.sgLoading;
+        el.innerHTML = '';
+      }
+    },
+    /** 전체 페이지 오버레이 (form 제출 등 차단형 작업에 사용). 핸들을 반환. */
+    overlay(label = '처리 중...') {
+      const node = document.createElement('div');
+      node.className = 'sg-loading-overlay';
+      node.setAttribute('role', 'status');
+      node.setAttribute('aria-live', 'polite');
+      node.innerHTML = `<span class="sg-spinner" aria-hidden="true"></span><span>${escapeHtml(label)}</span>`;
+      document.body.appendChild(node);
+      return {
+        close() { node.remove(); },
+        setLabel(newLabel) { node.querySelector('span:last-child').textContent = newLabel; },
+      };
+    },
+    /** 버튼에 인라인 스피너를 끼우고 disabled. 반환된 restore()로 원복. */
+    bindButton(btn, busyLabel) {
+      if (!btn) return () => {};
+      const prevHTML = btn.innerHTML;
+      const prevDisabled = btn.disabled;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="sg-spinner sm" aria-hidden="true"></span>${busyLabel ? `<span style="margin-left:8px">${escapeHtml(busyLabel)}</span>` : ''}`;
+      return function restore() {
+        btn.innerHTML = prevHTML;
+        btn.disabled = prevDisabled;
+      };
+    },
+  };
+
   // ─── Util ──────────────────────────────────────────────────────────────────
   const Util = {
     /** YYYY-MM-DD 기준 D-day 문자열. 음수면 D+N (지남). 오늘이면 D-DAY */
@@ -393,6 +485,26 @@
   PreviewApp.bootHome = async function () {
     if (!Auth.requireLogin()) return;
     DebugPanel.mount();
+
+    // 초기 데이터 로딩 동안 정적 placeholder를 스켈레톤으로 대체
+    const newsFeatTitle = document.querySelector('.news-feat .nf-title');
+    const newsFeatMeta = document.querySelector('.news-feat .nf-meta');
+    const newsFeatCat = document.querySelector('.news-feat .nf-cat');
+    if (newsFeatTitle) newsFeatTitle.innerHTML = '<span class="sk-box sk-line lg sk-w-90" style="display:block;margin-bottom:6px"></span><span class="sk-box sk-line lg sk-w-60" style="display:block"></span>';
+    if (newsFeatMeta) newsFeatMeta.innerHTML = '<span class="sk-box sk-line sm sk-w-50" style="display:inline-block;min-width:90px"></span>';
+    if (newsFeatCat) newsFeatCat.innerHTML = '<span class="sk-box sk-line sm" style="display:inline-block;width:32px;height:11px"></span>';
+    document.querySelectorAll('.news-rows .news-row').forEach((row) => {
+      const titleEl = row.querySelector('.nr-title');
+      const dateEl = row.querySelector('.nr-date');
+      const catEl = row.querySelector('.nr-cat');
+      if (titleEl) titleEl.innerHTML = '<span class="sk-box sk-line sm sk-w-90" style="display:inline-block;min-width:140px"></span>';
+      if (dateEl) dateEl.innerHTML = '<span class="sk-box sk-line sm" style="display:inline-block;width:28px;height:11px"></span>';
+      if (catEl) catEl.innerHTML = '<span class="sk-box sk-line sm" style="display:inline-block;width:28px;height:11px"></span>';
+    });
+    document.querySelectorAll('[data-fill="weather-temp"], [data-fill="weather-cond"], [data-fill="weather-dust"], [data-fill="nearby-store-count"]').forEach((el) => {
+      el.innerHTML = '<span class="sk-box sk-line sm" style="display:inline-block;min-width:30px;height:11px"></span>';
+    });
+
     try {
       const [dash, newsData] = await Promise.all([
         API.get('/api/v1/home/dashboard'),
@@ -531,10 +643,33 @@
     if (!Auth.requireLogin()) return;
     DebugPanel.mount();
 
+    // 프로필/통계 스켈레톤
+    const profileName = document.querySelector('.profile-name');
+    if (profileName) profileName.innerHTML = '<span class="sk-box sk-line lg sk-w-60" style="display:inline-block;min-width:90px"></span>';
+    const profileRegion = document.querySelector('.profile-region span[data-bind="region_dong"]');
+    if (profileRegion) profileRegion.innerHTML = '<span class="sk-box sk-line sm sk-w-50" style="display:inline-block;min-width:50px"></span>';
+    document.querySelectorAll('.stat-num').forEach((el) => {
+      el.innerHTML = '<span class="sk-box sk-line lg sk-w-50" style="display:inline-block;min-width:28px;height:18px"></span>';
+    });
+    // 매칭 리스트 영역 (author / applicant) 스켈레톤
+    document.querySelectorAll('.my-requests').forEach((el) => {
+      el.innerHTML = Loading.skeletonRows(2);
+    });
+    // 펫 스크롤 스피너
+    const petsScroll = document.getElementById('pets-scroll') || document.querySelector('.pets-scroll');
+    if (petsScroll) {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'pets-loading-placeholder';
+      placeholder.innerHTML = '<span class="sg-spinner sm" aria-hidden="true"></span>';
+      placeholder.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:flex-start;padding:0 12px;gap:8px;color:var(--ink-mute);font-size:12px';
+      petsScroll.insertBefore(placeholder, petsScroll.firstChild);
+    }
+
     function renderPets(pets) {
       const scroll = document.getElementById('pets-scroll') || document.querySelector('.pets-scroll');
       if (!scroll) return;
       scroll.querySelectorAll('.pet-v-card').forEach((c) => c.remove());
+      scroll.querySelector('.pets-loading-placeholder')?.remove();
       const addBtn = scroll.querySelector('.pet-v-add');
 
       (pets || []).forEach((p) => {
@@ -587,6 +722,12 @@
       const root = document.getElementById('appRoot');
       if (root) root.setAttribute('data-role', (me.role || 'USER').toLowerCase());
     } catch (err) {
+      // 실패 시에도 스켈레톤은 제거 (대시 표시 폴백)
+      if (profileName) profileName.textContent = '—';
+      if (profileRegion) profileRegion.textContent = '—';
+      document.querySelectorAll('.stat-num').forEach((el) => { el.textContent = '—'; });
+      document.querySelectorAll('.my-requests').forEach((el) => { el.innerHTML = ''; });
+      petsScroll?.querySelector('.pets-loading-placeholder')?.remove();
       Toast.error(`내 정보 로딩 실패: ${err.message}`);
     }
   };
@@ -640,29 +781,37 @@
 
     async function load(status) {
       const qs = status ? `?status=${status}` : '';
+      const listEl = document.getElementById('match-list');
+      const emptyEl = document.getElementById('match-empty');
+      if (listEl) listEl.innerHTML = Loading.skeletonCards(4);
+      if (emptyEl) emptyEl.hidden = true;
       try {
         const data = await API.get(`/api/v1/matches${qs}`);
-        Bind.apply(document, data);
+        Bind.apply(document, data); // 스켈레톤은 data-bind-each가 innerHTML을 비우며 자동 대체
         postProcess();
-        // 빈 상태 표시
-        const emptyEl = document.getElementById('match-empty');
         if (emptyEl) emptyEl.hidden = (data.items || []).length > 0;
       } catch (err) {
+        if (listEl) listEl.innerHTML = '';
         Toast.error(`매칭 목록 실패: ${err.message}`);
       }
     }
 
     // 활동 요약 카드
+    const reqEl = document.querySelector('.mac-side:first-child .mac-val');
+    const volEl = document.querySelector('.mac-side:last-child .mac-val');
+    if (reqEl) reqEl.innerHTML = '<span class="sk-box sk-line lg sk-w-50" style="display:inline-block;min-width:42px;height:16px"></span>';
+    if (volEl) volEl.innerHTML = '<span class="sk-box sk-line lg sk-w-50" style="display:inline-block;min-width:42px;height:16px"></span>';
     try {
       const [author, applicant] = await Promise.all([
         API.get('/api/v1/users/me/matches?role=author&status=WAITING&size=1'),
         API.get('/api/v1/users/me/matches?role=applicant&status=PROGRESS&size=1'),
       ]);
-      const reqEl = document.querySelector('.mac-side:first-child .mac-val');
       if (reqEl) reqEl.innerHTML = `${author.total}건<span>검토 중</span>`;
-      const volEl = document.querySelector('.mac-side:last-child .mac-val');
       if (volEl) volEl.innerHTML = `${applicant.total}건<span>진행 중</span>`;
-    } catch { /* 활동 카드 실패는 무시 */ }
+    } catch {
+      if (reqEl) reqEl.innerHTML = '—<span>검토 중</span>';
+      if (volEl) volEl.innerHTML = '—<span>진행 중</span>';
+    }
 
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -841,6 +990,12 @@
 
     let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 
+    // 펫 그리드 로딩 자리표시자
+    const petGridEl = document.getElementById('pet-select-grid');
+    if (petGridEl) {
+      petGridEl.innerHTML = '<div class="sk-box" style="height:96px;width:120px;border-radius:14px"></div><div class="sk-box" style="height:96px;width:120px;border-radius:14px"></div>';
+    }
+
     try {
       const me = await API.get('/api/v1/users/me');
       myPets = me.pets || [];
@@ -973,7 +1128,7 @@
       if (!state.title) { Toast.error('제목을 입력해 주세요.'); return; }
       if (!state.content) { Toast.error('요청 내용을 입력해 주세요.'); return; }
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, isEdit ? '수정 중...' : '등록 중...');
       try {
         if (isEdit) {
           const body = {
@@ -1004,7 +1159,7 @@
         }
       } catch (err) {
         Toast.error(`요청 처리 실패: ${err.message}`);
-        btn.disabled = false;
+        restoreBtn();
       }
     });
 
@@ -1061,6 +1216,10 @@
     } catch {}
 
     const listEl = document.getElementById("chat-messages");
+    // 메시지 초기 로딩 스피너
+    if (listEl) {
+      listEl.innerHTML = Loading.spinnerHTML('메시지를 불러오는 중...');
+    }
     function escapeHtmlLocal(s) {
       return String(s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
     }
@@ -1084,10 +1243,12 @@
     const seen = new Set();
     try {
       const initial = await API.get(`/api/v1/matches/${matchId}/applications/${appId}/messages?size=30`);
+      if (listEl) listEl.innerHTML = '';
       const items = initial.items || [];
       items.forEach((m) => seen.add(m.id));
       [...items].reverse().forEach(renderMsg);
     } catch (err) {
+      if (listEl) listEl.innerHTML = '';
       Toast.error(`메시지 로딩 실패: ${err.message}`);
     }
 
@@ -1183,11 +1344,18 @@
       }
     }
 
+    const rowsEl = document.getElementById('news-rows');
+    const featEl = document.getElementById('news-feat');
+    const newsEmptyEl = document.getElementById('news-empty');
+    if (rowsEl) rowsEl.innerHTML = Loading.skeletonRows(3);
+    if (featEl) featEl.hidden = true;
+    if (newsEmptyEl) newsEmptyEl.hidden = true;
     try {
       const data = await API.get('/api/v1/news');
       allNews = data.news || [];
       renderNews(allNews);
     } catch (err) {
+      if (rowsEl) rowsEl.innerHTML = '';
       Toast.error(`뉴스 로딩 실패: ${err.message}`);
     }
 
@@ -1212,11 +1380,13 @@
 
     async function load(cat) {
       const qs = cat ? `?category=${cat}` : '';
+      const listEl = document.getElementById('notif-list');
+      const tmpl = document.getElementById('tmpl-notif');
+      const empty = document.getElementById('notif-empty');
+      if (listEl) listEl.innerHTML = Loading.skeletonRows(4);
+      if (empty) empty.hidden = true;
       try {
         const data = await API.get(`/api/v1/notifications${qs}`);
-        const listEl = document.getElementById('notif-list');
-        const tmpl = document.getElementById('tmpl-notif');
-        const empty = document.getElementById('notif-empty');
         if (!listEl || !tmpl) return;
         listEl.innerHTML = '';
         const items = data.items || [];
@@ -1270,6 +1440,7 @@
           listEl.appendChild(node);
         });
       } catch (err) {
+        if (listEl) listEl.innerHTML = '';
         Toast.error(`알림 로딩 실패: ${err.message}`);
       }
     }
@@ -1306,6 +1477,19 @@
     const params = new URLSearchParams(location.search);
     const matchId = parseInt(params.get('id'), 10);
     if (!matchId) { Toast.error('잘못된 접근입니다.'); return; }
+
+    // 본문/필드를 스켈레톤으로 채워두기
+    const titleEl = document.querySelector('.md-title');
+    if (titleEl) titleEl.innerHTML = '<span class="sk-box sk-line xl sk-w-80" style="display:inline-block;min-width:200px;height:22px"></span>';
+    document.querySelectorAll('.md-info-value').forEach((el) => {
+      el.innerHTML = '<span class="sk-box sk-line sm sk-w-60" style="display:inline-block;min-width:120px"></span>';
+    });
+    const statusRow = document.querySelector('.md-status-row');
+    if (statusRow) {
+      statusRow.querySelectorAll('span').forEach((s) => {
+        s.innerHTML = '<span class="sk-box sk-line sm" style="display:inline-block;width:54px;height:11px"></span>';
+      });
+    }
 
     let me, detail;
     try {
@@ -1384,11 +1568,13 @@
     if (appsSection) appsSection.hidden = !isOwner;
 
     if (isOwner && (detail.status === 'WAITING' || detail.status === 'MATCHING')) {
+      const listEl = document.getElementById('apps-list');
+      if (listEl) listEl.innerHTML = Loading.skeletonRows(2);
       try {
         const apps = await API.get(`/api/v1/matches/${matchId}/applications`);
-        const listEl = document.getElementById('apps-list');
         const tmpl = document.getElementById('tmpl-applicant');
         const countEl = document.getElementById('apps-count');
+        if (listEl) listEl.innerHTML = '';
         if (countEl) countEl.textContent = apps.total || apps.items?.length || 0;
         (apps.items || []).forEach((app) => {
           const node = tmpl.content.cloneNode(true);
@@ -1433,7 +1619,10 @@
           empty.textContent = '아직 신청한 봉사자가 없어요';
           listEl.appendChild(empty);
         }
-      } catch (err) { Toast.error(err.message); }
+      } catch (err) {
+        if (listEl) listEl.innerHTML = '';
+        Toast.error(err.message);
+      }
     }
 
     // 신청자(나) 액션
@@ -1518,12 +1707,14 @@
 
     async function load(status) {
       const qs = status ? `&status=${status}` : '';
+      const listEl = document.getElementById('my-match-list');
+      const empty = document.getElementById('my-match-empty');
+      if (listEl) listEl.innerHTML = Loading.skeletonCards(3);
+      if (empty) empty.hidden = true;
       try {
         const data = await API.get(`/api/v1/users/me/matches?role=${roleParam}${qs}`);
-        const listEl = document.getElementById('my-match-list');
         const tmpl = document.getElementById('tmpl-my-match');
-        const empty = document.getElementById('my-match-empty');
-        listEl.innerHTML = '';
+        if (listEl) listEl.innerHTML = '';
         const items = data.items || [];
         if (empty) empty.hidden = items.length > 0;
         items.forEach((item) => {
@@ -1553,6 +1744,7 @@
           listEl.appendChild(node);
         });
       } catch (err) {
+        if (listEl) listEl.innerHTML = '';
         Toast.error(err.message);
       }
     }
@@ -1578,11 +1770,23 @@
     const storeId = parseInt(params.get('id'), 10);
     if (!storeId) { Toast.error('잘못된 접근입니다.'); return; }
 
+    // 상세 본문 + 리뷰 영역 스켈레톤
+    document.querySelectorAll('[data-bind]').forEach((el) => {
+      if (!el.textContent.trim() || el.textContent.trim() === '—') {
+        el.innerHTML = '<span class="sk-box sk-line sm sk-w-50" style="display:inline-block;min-width:60px"></span>';
+      }
+    });
+    const reviewListEl = document.getElementById('review-list');
+    if (reviewListEl) reviewListEl.innerHTML = Loading.skeletonRows(2);
+    const reviewEmpty = document.getElementById('review-empty');
+    if (reviewEmpty) reviewEmpty.hidden = true;
+
     try {
       const [detail, reviews] = await Promise.all([
         API.get(`/api/v1/maps/stores/${storeId}`),
         API.get(`/api/v1/maps/stores/${storeId}/reviews`),
       ]);
+      if (reviewListEl) reviewListEl.innerHTML = '';
       const reviewItems = reviews.reviews || reviews.items || [];
       Bind.apply(document, {
         ...detail,
@@ -1641,14 +1845,14 @@
       const petAllowed = document.getElementById('rv-pet-allowed')?.checked ?? true;
       if (!content || !rating) { Toast.error('별점과 리뷰 내용을 입력해 주세요.'); return; }
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '등록 중...');
       try {
         await API.post(`/api/v1/maps/stores/${storeId}/reviews`, {
           rating, content, is_pet_allowed: petAllowed,
         });
         Toast.ok('리뷰가 등록되었습니다.');
         setTimeout(() => location.reload(), 800);
-      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+      } catch (err) { Toast.error(err.message); restoreBtn(); }
     });
   };
 
@@ -1662,6 +1866,20 @@
     if (!newsId) { Toast.error('잘못된 접근입니다.'); return; }
 
     const CAT_LABEL = { POLICY:'정책', EVENT:'행사', VOLUNTEER:'봉사', SUPPORT:'지원', BADGE:'인증' };
+
+    // 본문 영역 스켈레톤
+    const bodyEl = document.getElementById('news-body');
+    if (bodyEl) {
+      bodyEl.innerHTML = `
+        <p><span class="sk-box sk-line sm sk-w-100" style="display:block;height:12px;margin-bottom:8px"></span>
+        <span class="sk-box sk-line sm sk-w-90" style="display:block;height:12px;margin-bottom:8px"></span>
+        <span class="sk-box sk-line sm sk-w-80" style="display:block;height:12px"></span></p>
+        <p><span class="sk-box sk-line sm sk-w-100" style="display:block;height:12px;margin-bottom:8px"></span>
+        <span class="sk-box sk-line sm sk-w-70" style="display:block;height:12px"></span></p>`;
+    }
+    document.querySelectorAll('[data-bind="title"], [data-bind="category_label"], [data-bind="published_date_ko"]').forEach((el) => {
+      el.innerHTML = '<span class="sk-box sk-line sm sk-w-60" style="display:inline-block;min-width:80px"></span>';
+    });
 
     try {
       const data = await API.get(`/api/v1/news/${newsId}`);
@@ -1701,15 +1919,31 @@
     if (!Auth.requireLogin()) return;
     DebugPanel.mount();
 
+    // 폼 위에 인라인 로딩 표시
+    const formEl = document.getElementById('profile-edit-form');
+    const loadingNode = document.createElement('div');
+    loadingNode.className = 'sg-loading';
+    loadingNode.innerHTML = '<span class="sg-spinner" aria-hidden="true"></span><span>프로필을 불러오는 중...</span>';
+    if (formEl) formEl.prepend(loadingNode);
+    ['nickname','phone','region-si','region-dong','profile-image-url'].forEach((id) => {
+      const el = document.getElementById(`edit-${id}`);
+      if (el) el.disabled = true;
+    });
+
     let me;
     try {
       me = await API.get('/api/v1/users/me');
       const fields = ['nickname', 'phone', 'region_si', 'region_dong', 'profile_image_url'];
       fields.forEach(f => {
         const el = document.getElementById(`edit-${f.replace('_','-')}`);
-        if (el) el.value = me[f] || '';
+        if (el) { el.value = me[f] || ''; el.disabled = false; }
       });
-    } catch (err) { Toast.error(err.message); return; }
+      loadingNode.remove();
+    } catch (err) {
+      loadingNode.remove();
+      Toast.error(err.message);
+      return;
+    }
 
     // GPS 버튼 — 위치 자동 채우기
     document.getElementById('btn-region-gps')?.addEventListener('click', async () => {
@@ -1738,12 +1972,15 @@
       });
       if (Object.keys(body).length === 0) { Toast.info('변경 사항이 없어요'); return; }
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '저장 중...');
       try {
         await API.patch('/api/v1/users/me', body);
         Toast.ok('프로필이 저장되었습니다.');
         setTimeout(() => { location.href = 'my.html'; }, 800);
-      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+      } catch (err) {
+        Toast.error(err.message);
+        restoreBtn();
+      }
     });
   };
 
@@ -1880,6 +2117,8 @@
         gender: state.gender,
         is_neutered: state.isNeutered,
       };
+      const btn = e.submitter || e.target.querySelector('[type=submit]');
+      const restoreBtn = Loading.bindButton(btn, isEdit ? '수정 중...' : '저장 중...');
       try {
         if (isEdit) {
           await API.patch(`/api/v1/users/me/pets/${petId}`, body);
@@ -1888,16 +2127,20 @@
         }
         Toast.ok(isEdit ? '수정되었습니다.' : '반려동물이 추가되었습니다.');
         setTimeout(() => { location.href = 'my.html'; }, 700);
-      } catch (err) { Toast.error(err.message); }
+      } catch (err) { Toast.error(err.message); restoreBtn(); }
     });
 
     document.getElementById('btn-delete')?.addEventListener('click', async () => {
       if (!confirm('반려동물을 삭제할까요?')) return;
+      const overlay = Loading.overlay('삭제 중...');
       try {
         await API.delete(`/api/v1/users/me/pets/${petId}`);
         Toast.ok('삭제되었습니다.');
         setTimeout(() => { location.href = 'my.html'; }, 600);
-      } catch (err) { Toast.error(err.message); }
+      } catch (err) {
+        overlay.close();
+        Toast.error(err.message);
+      }
     });
   };
 
@@ -1907,10 +2150,13 @@
     DebugPanel.mount();
     const listEl = document.getElementById('fav-list');
     const tmpl = document.getElementById('tmpl-fav');
+    const empty = document.getElementById('fav-empty');
+    if (listEl) listEl.innerHTML = Loading.skeletonRows(3);
+    if (empty) empty.hidden = true;
     try {
       const data = await API.get('/api/v1/users/me/favorites/stores');
       const items = data.items || [];
-      const empty = document.getElementById('fav-empty');
+      if (listEl) listEl.innerHTML = '';
       if (empty) empty.hidden = items.length > 0;
       items.forEach(it => {
         const node = tmpl.content.cloneNode(true);
@@ -1937,7 +2183,10 @@
         });
         listEl.appendChild(node);
       });
-    } catch (err) { Toast.error(err.message); }
+    } catch (err) {
+      if (listEl) listEl.innerHTML = '';
+      Toast.error(err.message);
+    }
   };
 
   // ─── Page boot: 설정 ─────────────────────────────────────────────────────
@@ -1989,12 +2238,12 @@
       if (!message) { Toast.error('신청서를 입력해 주세요.'); return; }
       const fullMessage = title ? `[${title}] ${message}` : message;
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '신청 중...');
       try {
         await API.post('/api/v1/users/me/volunteer-request', { message: fullMessage });
         Toast.ok('신청이 접수되었습니다. 관리자 승인을 기다려 주세요.');
         setTimeout(() => location.href = 'my.html', 1200);
-      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+      } catch (err) { Toast.error(err.message); restoreBtn(); }
     });
   };
 
@@ -2037,7 +2286,7 @@
       const content = contentEl.value.trim();
       if (!content) { Toast.error('후기 내용을 입력해 주세요'); return; }
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '등록 중...');
       try {
         await API.post(`/api/v1/matches/${matchId}/review`, {
           rating: selectedRating,
@@ -2046,7 +2295,7 @@
         });
         Toast.ok('후기가 등록되었습니다.');
         setTimeout(() => location.href = `match-detail.html?id=${matchId}`, 800);
-      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+      } catch (err) { Toast.error(err.message); restoreBtn(); }
     });
   };
 
@@ -2057,11 +2306,18 @@
     let year = new Date().getFullYear(), month = new Date().getMonth() + 1;
 
     async function render() {
+      const grid = document.getElementById('cal-grid');
+      if (grid) {
+        grid.innerHTML = '';
+        // 6주 × 7일 = 42칸의 스켈레톤 셀로 채워 깜빡임 방지
+        for (let i = 0; i < 42; i++) {
+          grid.insertAdjacentHTML('beforeend', '<div class="cal-cell"><span class="sk-box" style="width:18px;height:14px;border-radius:6px;display:inline-block"></span></div>');
+        }
+      }
       try {
         const data = await API.get(`/api/v1/news/calendar?year=${year}&month=${month}`);
         const lblEl = document.getElementById('cal-month-label');
         if (lblEl) lblEl.textContent = `${year}년 ${month}월`;
-        const grid = document.getElementById('cal-grid');
         if (!grid) return;
         grid.innerHTML = '';
         const firstDay = new Date(year, month-1, 1).getDay();
@@ -2092,7 +2348,10 @@
           }
           grid.appendChild(cell);
         }
-      } catch (err) { Toast.error(`캘린더 로딩 실패: ${err.message}`); }
+      } catch (err) {
+        if (grid) grid.innerHTML = '';
+        Toast.error(`캘린더 로딩 실패: ${err.message}`);
+      }
     }
     document.getElementById('cal-prev')?.addEventListener('click', () => {
       month--; if (month < 1) { month = 12; year--; } render();
@@ -2128,12 +2387,12 @@
       const reason = reasonEl.value.trim();
       if (!reason) { Toast.error('신고 사유를 입력해 주세요'); return; }
       const btn = e.submitter || form.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '제출 중...');
       try {
         if (type === 'chat') {
           const messageIdStr = document.getElementById('report-message-id')?.value.trim();
           const messageId = parseInt(messageIdStr, 10);
-          if (!messageId) { Toast.error('메시지 ID가 필요합니다'); btn.disabled = false; return; }
+          if (!messageId) { Toast.error('메시지 ID가 필요합니다'); restoreBtn(); return; }
           // chat_id 는 chat_rooms.id. application_id 기반으로 조회 어렵기 때문에 매칭 상세에서 넘기는 편이 정공법.
           await API.post('/api/v1/reports/chat', {
             chat_id: appId, // 임시 — 안드로이드에서는 chat_id를 별도 query 로 받게 보강
@@ -2146,7 +2405,7 @@
         }
         Toast.ok('신고가 접수되었습니다.');
         setTimeout(() => history.back(), 800);
-      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+      } catch (err) { Toast.error(err.message); restoreBtn(); }
     });
 
     // 차단 버튼 (옵션)
@@ -2201,14 +2460,14 @@
       const confirmPw = document.getElementById('pw-confirm').value;
       if (newPw !== confirmPw) { Toast.error('새 비밀번호가 일치하지 않습니다'); return; }
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '변경 중...');
       try {
         await API.put('/api/v1/users/me/password', {
           current_password: current, new_password: newPw,
         });
         Toast.ok('비밀번호가 변경되었습니다. 다시 로그인해 주세요.');
         setTimeout(() => Auth.logout(), 1200);
-      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+      } catch (err) { Toast.error(err.message); restoreBtn(); }
     });
   };
 
@@ -2222,7 +2481,7 @@
       const reason = document.getElementById('delete-reason').value.trim();
       if (!confirm('정말 탈퇴하시겠습니까? 30일 후 영구 삭제됩니다.')) return;
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '처리 중...');
       try {
         await API.delete('/api/v1/users/me', { password, reason });
         // delete는 body 미지원 — 그래서 fetch로 직접 호출
@@ -2239,7 +2498,7 @@
             throw new Error(e2.detail || res.statusText);
           }
         } catch (err2) {
-          Toast.error(err2.message); btn.disabled = false; return;
+          Toast.error(err2.message); restoreBtn(); return;
         }
       }
       Toast.ok('탈퇴되었습니다.');
@@ -2282,12 +2541,12 @@
       };
       if (!body.name || !body.address) { Toast.error('이름과 주소는 필수입니다'); return; }
       const btn = e.submitter || e.target.querySelector('[type=submit]');
-      btn.disabled = true;
+      const restoreBtn = Loading.bindButton(btn, '등록 중...');
       try {
         await API.post('/api/v1/maps/stores', body);
         Toast.ok('등록 요청이 접수되었습니다. 관리자 검토 후 지도에 노출됩니다.');
         setTimeout(() => location.href = 'map.html', 1000);
-      } catch (err) { Toast.error(err.message); btn.disabled = false; }
+      } catch (err) { Toast.error(err.message); restoreBtn(); }
     });
   };
 
@@ -2300,4 +2559,5 @@
   window.Toast = Toast;
   window.WS = WS;
   window.Util = Util;
+  window.Loading = Loading;
 })();
