@@ -13,6 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
 from app.admin.auth import AdminAuth
+from app.core.deps import close_redis
 from app.core.rate_limit import limiter
 from app.admin.views import (
     CalendarEventAdmin,
@@ -134,6 +135,12 @@ admin.add_view(CalendarEventAdmin)
 
 
 Instrumentator().instrument(app).expose(app)
+
+
+@app.on_event("shutdown")
+async def _on_shutdown() -> None:
+    # 싱글톤 Redis 풀 정리.
+    await close_redis()
 
 
 @app.get("/health", tags=["root"])

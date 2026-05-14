@@ -7,6 +7,8 @@ class Settings(BaseSettings):
 
     APP_ENV: str = "development"
 
+    # Railway 등 환경에서 private 도메인 URL이 따로 있을 수 있다. 있으면 우선 사용한다.
+    DATABASE_PRIVATE_URL_RAW: str | None = Field(default=None, alias="DATABASE_PRIVATE_URL")
     DATABASE_URL_RAW: str | None = Field(default=None, alias="DATABASE_URL")
 
     POSTGRES_USER: str | None = None
@@ -15,7 +17,14 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: int = 5432
 
-    REDIS_URL: str = "redis://redis:6379/0"
+    # DB 커넥션 풀 — 운영에서는 동시 요청 대비 넉넉히. asyncpg는 한 connection 당 한 쿼리.
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_RECYCLE_SECONDS: int = 1800  # 30분마다 connection 재활용
+
+    # Redis도 DB와 동일하게 private 도메인을 우선 사용. 환경에 따라 정의되지 않을 수 있어 옵션.
+    REDIS_PRIVATE_URL_RAW: str | None = Field(default=None, alias="REDIS_PRIVATE_URL")
+    REDIS_URL_RAW: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
 
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
@@ -34,7 +43,7 @@ class Settings(BaseSettings):
     NAVER_API_ID: str
     NAVER_API_SECRET: str
     KAKAO_REST_API_KEY: str
-    NEWS_CACHE_TTL: int = 14_400  # 4시간
+    NEWS_CACHE_TTL: int = 3600  # 1시간 (이전 4시간 → 단축)
 
     @property
     def ADMIN_SESSION_KEY(self) -> str:
@@ -61,16 +70,33 @@ class Settings(BaseSettings):
         return self
 
     @property
+    def REDIS_URL(self) -> str:
+        # private domain이 정의돼 있고 placeholder가 남아있지 않으면 그쪽을 사용.
+        priv = self.REDIS_PRIVATE_URL_RAW
+        if priv and "${{" not in priv:
+            return priv
+        return self.REDIS_URL_RAW
+
+    @staticmethod
+    def _normalize_pg_url(url: str) -> str:
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if url.startswith("postgres://"):
+            return url.replace("postgres://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
     def DATABASE_URL(self) -> str:
-        if self.DATABASE_URL_RAW:
-            url = self.DATABASE_URL_RAW
-            if url.startswith("postgresql://"):
-                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            elif url.startswith("postgres://"):
-                url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-            return url
+        # 우선순위: 1) DATABASE_PRIVATE_URL (Railway internal 도메인 → 한 자릿수 ms RTT)
+        #          2) DATABASE_URL (public proxy 가능성 — 매 연결마다 외부 hop)
+        #          3) POSTGRES_USER/PASSWORD/DB (로컬 docker compose 등)
+        raw = self.DATABASE_PRIVATE_URL_RAW or self.DATABASE_URL_RAW
+        if raw:
+            return self._normalize_pg_url(raw)
         if not (self.POSTGRES_USER and self.POSTGRES_PASSWORD and self.POSTGRES_DB):
-            raise ValueError("DATABASE_URL or POSTGRES_USER/PASSWORD/DB must be set")
+            raise ValueError(
+                "DATABASE_PRIVATE_URL / DATABASE_URL / POSTGRES_USER+PASSWORD+DB 중 하나는 설정해야 합니다."
+            )
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"

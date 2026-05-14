@@ -13,8 +13,38 @@ from app.models.user import User
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
+_redis_client: aioredis.Redis | None = None
+
+
+def _build_redis_client() -> aioredis.Redis:
+    # aioredis.from_url 은 내부적으로 ConnectionPool 을 만든다.
+    # 매 요청마다 호출하면 새 풀이 생기므로 반드시 싱글톤으로 재사용해야 한다.
+    return aioredis.from_url(
+        settings.REDIS_URL,
+        decode_responses=True,
+        max_connections=20,
+        socket_timeout=2.0,
+        socket_connect_timeout=2.0,
+        health_check_interval=30,
+    )
+
+
 async def get_redis() -> aioredis.Redis:
-    return aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = _build_redis_client()
+    return _redis_client
+
+
+async def close_redis() -> None:
+    """앱 종료 시 호출. 풀과 connection을 정리한다."""
+    global _redis_client
+    if _redis_client is not None:
+        try:
+            await _redis_client.aclose()
+        except Exception:
+            pass
+        _redis_client = None
 
 
 async def get_current_user(

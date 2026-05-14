@@ -2,10 +2,13 @@ import asyncio
 import hashlib
 import html
 import json
+import logging
 import re
 from datetime import date
 from email.utils import parsedate_to_datetime
 from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
 
 import httpx
 import redis.asyncio as aioredis
@@ -27,7 +30,7 @@ from app.schemas.news import (
 _NAVER_NEWS_URL = "https://openapi.naver.com/v1/search/news.json"
 _CACHE_KEY = "news:list"
 _OG_CACHE_PREFIX = "news:og:"
-_OG_CACHE_TTL = 60 * 60 * 24  # 24h
+_OG_CACHE_TTL = 60 * 60 * 6  # 6h (이전 24h → 단축)
 
 # api-spec §6.1: link 도메인 기반 매체명 매핑.
 _PUBLISHER_MAP = {
@@ -309,8 +312,10 @@ async def get_news_list(redis: aioredis.Redis) -> NewsListResponse:
             json.dumps([item.model_dump() for item in news_items]),
             ex=settings.NEWS_CACHE_TTL,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        # 캐시 SET 실패하면 다음 요청도 다시 Naver API 7개 호출 + og:image 스크래핑이 돌게 되므로
+        # 조용히 묻기보다 경고를 남겨 운영에서 원인을 파악할 수 있게 한다.
+        logger.warning("news cache set failed: %s", exc)
 
     return NewsListResponse(news=news_items)
 

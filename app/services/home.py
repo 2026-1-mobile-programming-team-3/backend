@@ -25,9 +25,9 @@ from app.schemas.home import (
 )
 
 
-_WALK_SCORE_TTL = 60 * 30
-_WEATHER_TTL = 60 * 30
-_NEARBY_STORE_TTL = 60 * 5
+_WALK_SCORE_TTL = 60 * 10  # 10분 (이전 30분 → 단축)
+_WEATHER_TTL = 60 * 10  # 10분 (이전 30분 → 단축)
+_NEARBY_STORE_TTL = 60 * 3  # 3분 (이전 5분 → 단축)
 
 
 async def _walk_score_stub(user_id: int) -> int:
