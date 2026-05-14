@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 매장 등록</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .edit-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 16px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .page-title { font-size:17px; font-weight:900; color:var(--ink); flex:1; text-align:center; padding-right:36px; }
+    .info-card { margin:0 24px 18px; padding:14px 16px; background:var(--mint-soft);
+      border:1px solid rgba(122,155,110,0.20); border-radius:var(--r-lg);
+      font-size:12.5px; font-weight:600; color:var(--ink-soft); line-height:1.55; }
+    form { padding:0 24px; display:flex; flex-direction:column; gap:14px; }
+    .form-field-group { display:flex; flex-direction:column; gap:6px; }
+    .form-label { font-size:13px; font-weight:800; color:var(--ink); }
+    .form-label em { color:var(--raspberry); font-style:normal; }
+    .form-field {
+      width:100%; padding:14px 16px; border-radius:var(--r-lg);
+      border:1.5px solid var(--line); background:var(--card);
+      font:inherit; font-size:14px; font-weight:600; color:var(--ink);
+      outline:none; box-sizing:border-box; appearance:none;
+    }
+    .form-field:focus { border-color:var(--accent); }
+    .gps-row { display:flex; gap:8px; align-items:flex-end; }
+    .gps-row .form-field { flex:1; }
+    .btn-gps { padding:14px 16px; border-radius:var(--r-lg); background:var(--card); border:1.5px solid var(--line);
+      font:inherit; font-size:13px; font-weight:800; color:var(--accent); cursor:pointer; white-space:nowrap;
+      display:inline-flex; align-items:center; gap:4px; }
+    .btn-gps i { font-size:15px; }
+    .checkbox-row { display:flex; align-items:center; gap:10px; padding:10px 0; }
+    .checkbox-row input { width:20px; height:20px; }
+    .checkbox-row label { font-size:14px; font-weight:700; color:var(--ink); }
+    .btn-primary { margin:16px 24px calc(16px + env(safe-area-inset-bottom,0px));
+      padding:16px; border-radius:var(--r-lg); background:var(--accent); color:#fff; border:none;
+      font:inherit; font-size:15px; font-weight:900; cursor:pointer; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <header class="edit-topbar">
+      <a class="back-btn" href="map.html"><i class="ph ph-arrow-left"></i></a>
+      <h1 class="page-title">새 매장 등록</h1>
+    </header>
+
+    <div class="info-card">
+      등록된 매장은 관리자 검토 후 지도에 노출돼요. 반려동물 동반 가능 여부를 정확히 표시해 주세요.
+    </div>
+
+    <form id="store-add-form">
+      <div class="form-field-group">
+        <label class="form-label" for="store-name">매장 이름 <em>*</em></label>
+        <input class="form-field" type="text" id="store-name" maxlength="100" placeholder="예: 배곧 댕댕카페" required />
+      </div>
+      <div class="form-field-group">
+        <label class="form-label" for="store-address">주소 <em>*</em></label>
+        <div class="gps-row">
+          <input class="form-field" type="text" id="store-address" maxlength="255" placeholder="경기도 시흥시 ..." required />
+          <button type="button" class="btn-gps" id="btn-gps"><i class="ph ph-crosshair"></i>현재 위치</button>
+        </div>
+      </div>
+      <div class="form-field-group">
+        <label class="form-label" for="store-category">카테고리 <em>*</em></label>
+        <select class="form-field" id="store-category">
+          <option value="CAFE">카페</option>
+          <option value="RESTAURANT">식당</option>
+          <option value="PARK">공원</option>
+          <option value="VET">동물병원</option>
+          <option value="GROOMING">미용실</option>
+        </select>
+      </div>
+      <div class="form-field-group">
+        <label class="form-label" for="store-phone">전화번호</label>
+        <input class="form-field" type="tel" id="store-phone" maxlength="20" placeholder="예: 031-123-4567" />
+      </div>
+      <div class="form-field-group">
+        <label class="form-label" for="store-hours">영업시간</label>
+        <input class="form-field" type="text" id="store-hours" maxlength="100" placeholder="예: 10:00 - 22:00" />
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="store-pet-allowed" checked />
+        <label for="store-pet-allowed">반려동물 동반 가능</label>
+      </div>
+    </form>
+
+    <button class="btn-primary" type="submit" form="store-add-form">등록 요청</button>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootStoreAdd());</script>
+</body>
+</html>

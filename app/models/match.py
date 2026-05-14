@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Any, Optional
 
 import sqlalchemy as sa
@@ -26,6 +26,7 @@ class Match(Base):
     )
     address: Mapped[Optional[str]] = mapped_column(sa.String(255))
     desired_date: Mapped[Optional[date]] = mapped_column(sa.Date)
+    desired_time: Mapped[Optional[time]] = mapped_column(sa.Time)
     status: Mapped[MatchStatus] = mapped_column(
         sa.Enum(MatchStatus, name="match_status"),
         nullable=False,

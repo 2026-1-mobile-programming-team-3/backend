@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 신고</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .edit-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 16px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .page-title { font-size:17px; font-weight:900; color:var(--ink); flex:1; text-align:center; padding-right:36px; }
+    .info-card { margin:0 24px 18px; padding:14px 16px; background:var(--raspberry-soft);
+      border:1px solid rgba(240,66,112,0.14); border-radius:var(--r-lg);
+      font-size:12.5px; font-weight:600; color:var(--ink-soft); line-height:1.55; }
+    form { padding:0 24px; display:flex; flex-direction:column; gap:14px; }
+    .form-label { font-size:13px; font-weight:800; color:var(--ink); letter-spacing:-0.02em; }
+    .form-label em { color:var(--raspberry); font-style:normal; }
+    .form-field {
+      width:100%; padding:14px 16px; border-radius:var(--r-lg);
+      border:1.5px solid var(--line); background:var(--card);
+      font:inherit; font-size:14px; font-weight:600; color:var(--ink);
+      outline:none; box-sizing:border-box; resize:none;
+    }
+    .form-field:focus { border-color:var(--accent); }
+    .char-count { font-size:11px; font-weight:700; color:var(--ink-mute); text-align:right; margin-top:-4px; }
+    .actions { padding:8px 24px calc(20px + env(safe-area-inset-bottom,0px)); display:flex; flex-direction:column; gap:10px; }
+    .btn-primary { padding:16px; border-radius:var(--r-lg); background:var(--raspberry); color:#fff; border:none;
+      font:inherit; font-size:15px; font-weight:900; cursor:pointer; }
+    .btn-secondary { padding:14px; border-radius:var(--r-lg); background:var(--card); color:var(--ink-soft);
+      border:1.5px solid var(--line); font:inherit; font-size:14px; font-weight:800; cursor:pointer; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <header class="edit-topbar">
+      <a class="back-btn" href="javascript:history.back()"><i class="ph ph-arrow-left"></i></a>
+      <h1 class="page-title">신고</h1>
+    </header>
+
+    <div class="info-card">
+      신고 내용은 운영팀에서만 확인하며, 작성자에게 공개되지 않아요. 허위 신고는 제한될 수 있어요.
+    </div>
+
+    <form id="report-form">
+      <div>
+        <label class="form-label" for="report-reason">신고 사유 <em>*</em></label>
+        <textarea class="form-field" id="report-reason" rows="6" maxlength="2000"
+          placeholder="어떤 점이 문제인지 구체적으로 작성해 주세요.&#10;예: 욕설/혐오 발언, 허위 정보 게시, 사기 의심 등"></textarea>
+        <div class="char-count"><span id="reason-count">0 / 2000</span></div>
+      </div>
+      <!-- 채팅 신고용 메시지 ID 입력 (있을 때만) -->
+      <div id="chat-only-field" style="display:none">
+        <label class="form-label" for="report-message-id">신고할 메시지 ID</label>
+        <input class="form-field" type="number" id="report-message-id" placeholder="메시지 ID" />
+      </div>
+    </form>
+
+    <div class="actions">
+      <button class="btn-primary" type="submit" form="report-form">신고 접수</button>
+      <button class="btn-secondary" type="button" id="btn-block-user">이 사용자 차단하기</button>
+    </div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  PreviewApp.bootReports();
+  if ((new URLSearchParams(location.search).get('type')) === 'chat') {
+    document.getElementById('chat-only-field').style.display = '';
+  }
+});
+</script>
+</body>
+</html>

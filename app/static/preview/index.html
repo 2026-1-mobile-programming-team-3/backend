@@ -608,14 +608,16 @@
     <!-- ════ H1: 타이포 헤드라인 ════ -->
     <div class="home-variant home-h1">
       <section class="hero anim-fade-slide-up delay-1">
-        <div class="hero-eyebrow">시흥가개 · 정왕동</div>
+        <div class="hero-eyebrow">시흥가개 · <span data-fill="region">정왕동</span></div>
         <div class="hero-head">오늘 산책지수<br/><em><span data-bind="walk_score">92</span>점</em>으로 좋아요</div>
         <div class="hero-sub">
-          <span>맑음 · 18°</span>
+          <span data-fill="weather-cond">맑음</span>
           <span class="hero-sub-dot"></span>
-          <span>미세먼지 좋음</span>
+          <span data-fill="weather-temp">18°</span>
+          <span class="hero-sub-dot"></span>
+          <span data-fill="weather-dust">미세먼지 좋음</span>
         </div>
-        <a class="match-pill anim-scale-in delay-2" href="match.html">
+        <a class="match-pill anim-scale-in delay-2" href="match.html" hidden>
           <span class="match-pill-dday">D-2</span>
           <span class="match-pill-text">병원 이동 · 신청 2건 검토하기</span>
           <i class="ph ph-arrow-right"></i>
@@ -692,7 +694,7 @@
     <!-- ════ 주변 매장 ════ -->
     <section class="places anim-fade-slide-up delay-2">
       <div class="v3-sh">
-        <h2 class="v3-sh-title">주변 매장 <em>24곳</em></h2>
+        <h2 class="v3-sh-title">주변 매장 <em data-fill="nearby-store-count">24곳</em></h2>
         <a class="v3-sh-link" href="map.html"><i class="ph ph-map-trifold"></i>지도 보기</a>
       </div>
       <div class="places-map-wrap">
@@ -759,23 +761,23 @@
 
     <!-- ════ 봉사 CTA / 봉사자 배너 ════ -->
     <section class="role-user-only anim-fade-slide-up delay-4">
-      <div class="vol-cta">
+      <a class="vol-cta" href="volunteer-request.html" style="text-decoration:none;color:inherit;">
         <span class="vc-icon"><i class="ph ph-handshake"></i></span>
         <div class="vc-copy">
           <div class="vc-title">이동 지원 봉사자가 되어 보세요</div>
           <div class="vc-desc">시흥 반려동물 이동지원 매칭 참여</div>
         </div>
-        <button class="vc-btn">신청<i class="ph-bold ph-arrow-right"></i></button>
-      </div>
+        <span class="vc-btn">신청<i class="ph-bold ph-arrow-right"></i></span>
+      </a>
     </section>
 
     <section class="role-vol-only anim-fade-slide-up delay-4">
-      <a class="vol-banner" href="#">
+      <a class="vol-banner" href="my.html">
         <span class="vb-medal"><i class="ph ph-medal"></i></span>
         <div class="vb-body">
-          <div class="vb-title">누적 봉사 <em>3건</em> · 평점 4.7</div>
+          <div class="vb-title">누적 봉사 <em data-fill="vol-total">0건</em> · 평점 <span data-fill="vol-rating">—</span></div>
           <div class="vb-prog"><span style="width:60%"></span></div>
-          <div class="vb-meta">다음 등급(꽃)까지 2건</div>
+          <div class="vb-meta">봉사 활동을 이어가요</div>
         </div>
         <span class="vb-arrow"><i class="ph-bold ph-arrow-up-right"></i></span>
       </a>

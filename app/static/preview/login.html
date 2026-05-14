@@ -8,36 +8,64 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
   <link rel="stylesheet" href="styles-v3.css" />
   <style>
-    .auth-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center;
-      min-height:100dvh; padding:32px 32px calc(32px + env(safe-area-inset-bottom,0px)); }
-    .auth-logo { font-size:36px; font-weight:900; letter-spacing:-0.05em; color:var(--ink); margin-bottom:8px; }
-    .auth-logo span { color:var(--accent); }
-    .auth-sub { font-size:13px; font-weight:600; color:var(--ink-mute); margin-bottom:40px; }
-    .auth-form { width:100%; display:flex; flex-direction:column; gap:12px; }
+    .auth-topbar { padding:18px 24px 0; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .auth-wrap { display:flex; flex-direction:column;
+      min-height:100dvh; padding:0 32px calc(32px + env(safe-area-inset-bottom,0px)); }
+    .auth-headline { padding:24px 0 36px; }
+    .auth-headline h1 { font-size:28px; font-weight:900; letter-spacing:-0.045em; color:var(--ink); line-height:1.3; }
+    .auth-headline p { font-size:13.5px; font-weight:600; color:var(--ink-mute); margin-top:10px; }
+    .auth-form { width:100%; display:flex; flex-direction:column; gap:14px; }
+    .form-field-group { display:flex; flex-direction:column; gap:6px; }
+    .form-label { font-size:13px; font-weight:800; color:var(--ink); letter-spacing:-0.02em; }
     .auth-field { width:100%; padding:15px 16px; border-radius:var(--r-lg);
       border:1.5px solid var(--line); background:var(--card);
       font:inherit; font-size:14px; font-weight:600; color:var(--ink);
       outline:none; transition:border-color 0.18s; box-sizing:border-box; }
     .auth-field:focus { border-color:var(--accent); }
     .auth-field::placeholder { color:var(--ink-mute); font-weight:500; }
+    .pw-wrap { position:relative; }
+    .pw-toggle { position:absolute; right:14px; top:50%; transform:translateY(-50%);
+      background:none; border:none; color:var(--ink-mute); cursor:pointer; }
+    .pw-toggle i { font-size:18px; }
+    .auth-link-row { text-align:right; }
+    .forgot-link { font-size:12.5px; font-weight:700; color:var(--ink-mute); text-decoration:none; }
     .auth-btn { width:100%; padding:16px; border-radius:var(--r-lg);
-      background:var(--ink); color:#fff; border:none; font:inherit;
-      font-size:15px; font-weight:800; letter-spacing:-0.02em; cursor:pointer;
+      background:var(--accent); color:#fff; border:none; font:inherit;
+      font-size:15px; font-weight:900; letter-spacing:-0.02em; cursor:pointer;
       transition:transform 0.18s var(--spring); margin-top:4px; }
     .auth-btn:active { transform:scale(0.97); }
+    .auth-err { font-size:12.5px; font-weight:700; color:var(--raspberry); text-align:center; min-height:18px; }
     .auth-link { font-size:13px; font-weight:600; color:var(--ink-mute);
       text-align:center; margin-top:20px; }
     .auth-link a { color:var(--accent); font-weight:800; }
-    .auth-err { font-size:12.5px; font-weight:700; color:var(--raspberry); text-align:center; min-height:18px; }
   </style>
 </head>
 <body>
+<div class="auth-topbar">
+  <a class="back-btn" href="javascript:history.back()"><i class="ph ph-arrow-left"></i></a>
+</div>
 <div class="auth-wrap">
-  <div class="auth-logo">시흥<span>가개</span></div>
-  <div class="auth-sub">반려동물 이동 지원 매칭 서비스</div>
+  <div class="auth-headline">
+    <h1>반가워요!<br/>로그인을 진행해 주세요.</h1>
+    <p>시흥의 반려동물 이웃을 만나러 가요</p>
+  </div>
   <form class="auth-form" id="loginForm">
-    <input class="auth-field" type="email" id="email" placeholder="이메일" autocomplete="email" required />
-    <input class="auth-field" type="password" id="password" placeholder="비밀번호" autocomplete="current-password" required />
+    <div class="form-field-group">
+      <label class="form-label" for="email">아이디</label>
+      <input class="auth-field" type="email" id="email" placeholder="아이디 또는 이메일 입력" autocomplete="email" required />
+    </div>
+    <div class="form-field-group">
+      <label class="form-label" for="password">비밀번호</label>
+      <div class="pw-wrap">
+        <input class="auth-field" type="password" id="password" placeholder="비밀번호 입력" autocomplete="current-password" required />
+        <button class="pw-toggle" type="button" id="pw-toggle"><i class="ph ph-eye"></i></button>
+      </div>
+    </div>
+    <div class="auth-link-row">
+      <a class="forgot-link" href="#" onclick="alert('비밀번호 재설정은 운영팀(siheunggagae@gmail.com)으로 문의해 주세요'); return false;">비밀번호를 잊으셨나요?</a>
+    </div>
     <div class="auth-err" id="errMsg"></div>
     <button class="auth-btn" type="submit">로그인</button>
   </form>
@@ -53,6 +81,14 @@
     return;
   }
   DebugPanel.mount();
+  // password toggle
+  document.getElementById('pw-toggle').addEventListener('click', () => {
+    const pw = document.getElementById('password');
+    const isText = pw.type === 'text';
+    pw.type = isText ? 'password' : 'text';
+    const icon = document.querySelector('#pw-toggle i');
+    icon.className = isText ? 'ph ph-eye' : 'ph ph-eye-slash';
+  });
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('email').value.trim();
@@ -66,7 +102,9 @@
       const params = new URLSearchParams(location.search);
       location.href = params.get('redirect') || 'index.html';
     } catch (err) {
-      errEl.textContent = err.status === 401 ? '이메일 또는 비밀번호가 올바르지 않습니다.' : '서버 오류가 발생했어요. 잠시 후 다시 시도해 주세요.';
+      errEl.textContent = err.status === 401
+        ? '이메일 또는 비밀번호가 올바르지 않습니다.'
+        : (err.status === 429 ? '너무 많은 시도가 있었어요. 잠시 후 다시 시도해 주세요.' : '서버 오류가 발생했어요.');
       btn.disabled = false;
     }
   });

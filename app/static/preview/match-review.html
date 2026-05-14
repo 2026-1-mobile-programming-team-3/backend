@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 후기 작성</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .edit-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 16px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .page-title { font-size:17px; font-weight:900; color:var(--ink); flex:1; text-align:center; padding-right:36px; }
+
+    .review-hero {
+      margin:0 24px 24px; padding:24px 16px;
+      background:linear-gradient(135deg, var(--mint-soft) 0%, var(--accent-soft) 100%);
+      border-radius:var(--r-xl); text-align:center;
+    }
+    .review-hero-icon { width:64px; height:64px; border-radius:50%; background:#fff;
+      display:inline-flex; align-items:center; justify-content:center; margin-bottom:10px;
+      box-shadow:var(--shadow-md); }
+    .review-hero-icon i { font-size:32px; color:var(--mint); }
+    .review-hero-title { font-size:18px; font-weight:900; color:var(--ink); letter-spacing:-0.035em; }
+    .review-hero-sub { font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-top:6px; }
+
+    .section-label { font-size:13px; font-weight:900; color:var(--ink); padding:0 24px 10px; letter-spacing:-0.025em; }
+    .star-row { display:flex; justify-content:center; gap:8px; padding:0 24px 8px; }
+    .review-star { background:none; border:none; cursor:pointer; padding:6px; }
+    .review-star i { font-size:38px; color:var(--line-strong); transition:color 0.15s; }
+    .review-star.active i { color:var(--star); }
+    .rating-label { font-size:13px; font-weight:800; color:var(--accent); text-align:center; padding:0 24px 24px; min-height:18px; }
+
+    .form-wrap { padding:0 24px; display:flex; flex-direction:column; gap:14px; }
+    .form-field {
+      width:100%; padding:14px 16px; border-radius:var(--r-lg);
+      border:1.5px solid var(--line); background:var(--card);
+      font:inherit; font-size:14px; font-weight:600; color:var(--ink);
+      outline:none; transition:border-color 0.18s; box-sizing:border-box; resize:none;
+    }
+    .form-field:focus { border-color:var(--accent); }
+    .form-field::placeholder { color:var(--ink-mute); }
+    .char-count { font-size:11px; font-weight:700; color:var(--ink-mute); text-align:right; }
+
+    .btn-primary {
+      margin:16px 24px calc(16px + env(safe-area-inset-bottom,0px));
+      padding:16px; border-radius:var(--r-lg);
+      background:var(--mint); color:#fff; border:none;
+      font:inherit; font-size:15px; font-weight:900; cursor:pointer;
+    }
+    .btn-primary:active { transform:scale(0.97); }
+    .btn-primary:disabled { opacity:0.5; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <header class="edit-topbar">
+      <a class="back-btn" href="javascript:history.back()"><i class="ph ph-arrow-left"></i></a>
+      <h1 class="page-title">봉사 후기 작성</h1>
+    </header>
+
+    <div class="review-hero">
+      <div class="review-hero-icon"><i class="ph-fill ph-check-circle"></i></div>
+      <div class="review-hero-title">봉사가 완료되었어요!</div>
+      <div class="review-hero-sub">함께한 봉사자/요청자에게 후기를 남겨주세요</div>
+    </div>
+
+    <div class="section-label">별점</div>
+    <div class="star-row">
+      <button type="button" class="review-star"><i class="ph ph-star"></i></button>
+      <button type="button" class="review-star"><i class="ph ph-star"></i></button>
+      <button type="button" class="review-star"><i class="ph ph-star"></i></button>
+      <button type="button" class="review-star"><i class="ph ph-star"></i></button>
+      <button type="button" class="review-star"><i class="ph ph-star"></i></button>
+    </div>
+    <div class="rating-label" id="rating-label">선택해 주세요</div>
+
+    <form class="form-wrap" id="match-review-form">
+      <div>
+        <div class="section-label" style="padding:0 0 8px">후기 내용</div>
+        <textarea class="form-field" id="review-content" rows="6" maxlength="2000"
+          placeholder="봉사가 어떠셨나요? 매너, 시간 약속, 차량 상태 등 다음 분들에게 도움 될 만한 내용을 남겨주세요."></textarea>
+        <div class="char-count"><span id="review-content-count">0 / 2000</span></div>
+      </div>
+    </form>
+
+    <button class="btn-primary" type="submit" form="match-review-form">후기 등록하기</button>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootMatchReview());</script>
+</body>
+</html>

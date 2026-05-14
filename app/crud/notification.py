@@ -91,6 +91,29 @@ async def mark_all_read(db: AsyncSession, user_id: int) -> int:
     return int(result.rowcount or 0)
 
 
+async def mark_one_read(
+    db: AsyncSession, *, user_id: int, notification_id: int
+) -> tuple[bool, bool]:
+    """단건 알림을 읽음 처리. 반환: (found, was_unread).
+
+    - found=False: 본인 소유의 해당 알림 없음 (404)
+    - found=True, was_unread=True: 이번 호출로 read_at 갱신됨
+    - found=True, was_unread=False: 이미 읽은 상태였음 (멱등)
+    """
+    stmt = select(Notification).where(
+        Notification.id == notification_id,
+        Notification.user_id == user_id,
+    )
+    notif = (await db.execute(stmt)).scalar_one_or_none()
+    if notif is None:
+        return (False, False)
+    if notif.read_at is not None:
+        return (True, False)
+    notif.read_at = datetime.now(timezone.utc)
+    await db.commit()
+    return (True, True)
+
+
 # ─── NotificationSetting CRUD ────────────────────────────────────────────────
 
 

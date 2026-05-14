@@ -69,6 +69,32 @@
 
 ---
 
+### 2.5 알림 단건 읽음 처리 — `PATCH /notifications/{notification_id}/read` [T0]
+
+**인증 필요** / **Path**: `notification_id` (integer ≥ 1)
+
+알림 카드 클릭 시 호출해 `read_at` 을 갱신한다. 본인 소유의 알림만 처리되며, 이미 읽은 알림에 재호출해도 200 (멱등).
+
+**Response — 200 OK**
+```json
+{
+  "id": 101,
+  "is_read": true,
+  "updated": true
+}
+```
+
+- `updated`: 이번 호출로 `read_at` 이 갱신됐는지(`true`), 아니면 이미 읽은 상태였는지(`false`).
+
+**Errors**
+
+| 상태 코드 | 설명 |
+| --- | --- |
+| 401 | 인증 실패 |
+| 404 | 본인 소유의 해당 알림이 존재하지 않음 |
+
+---
+
 ### 2.3 읽지 않은 알림 개수 조회 — `GET /notifications/unread-count` [T0]
 
 **인증 필요**

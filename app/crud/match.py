@@ -1,5 +1,5 @@
 from datetime import date as date_type
-from datetime import datetime, timezone
+from datetime import datetime, time as time_type, timezone
 
 from geoalchemy2 import Geography, Geometry
 from sqlalchemy import func
@@ -53,6 +53,7 @@ async def create_match(
     lng: float,
     address: str | None,
     desired_date: date_type | None,
+    desired_time: time_type | None,
     pet_id: int | None,
 ) -> Match:
     match = Match(
@@ -63,6 +64,7 @@ async def create_match(
         location=func.ST_SetSRID(func.ST_MakePoint(lng, lat), 4326).cast(Geography),
         address=address,
         desired_date=desired_date,
+        desired_time=desired_time,
         status=MatchStatus.WAITING,
     )
     db.add(match)

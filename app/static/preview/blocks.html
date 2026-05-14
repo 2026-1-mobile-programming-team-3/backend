@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 차단한 사용자</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .edit-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 16px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .page-title { font-size:18px; font-weight:900; color:var(--ink); flex:1; text-align:center; padding-right:36px; }
+    .block-list { padding:0 24px; display:flex; flex-direction:column; gap:10px; }
+    .block-card { display:flex; align-items:center; gap:12px; padding:14px 16px;
+      background:var(--card); border:1px solid var(--line); border-radius:var(--r-xl);
+      box-shadow:var(--shadow-xs); }
+    .block-avatar { width:40px; height:40px; border-radius:50%; background:rgba(30,18,10,0.08);
+      display:flex; align-items:center; justify-content:center; color:var(--ink-mute); font-size:18px; flex-shrink:0; }
+    .block-info { flex:1; min-width:0; }
+    .block-nick { font-size:14.5px; font-weight:800; color:var(--ink); letter-spacing:-0.025em; }
+    .block-date { font-size:12px; font-weight:600; color:var(--ink-mute); margin-top:2px; }
+    .btn-unblock { padding:9px 14px; border-radius:999px; background:var(--card); border:1.5px solid var(--line);
+      font:inherit; font-size:12.5px; font-weight:800; color:var(--ink-soft); cursor:pointer; }
+    .empty-card { margin:60px 24px; padding:40px 20px;
+      background:var(--card); border:1px dashed var(--line); border-radius:var(--r-xl); text-align:center;
+      display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .empty-card i { font-size:36px; color:var(--ink-mute); }
+    .empty-card-title { font-size:14px; font-weight:800; color:var(--ink); }
+    .empty-card-sub { font-size:12px; font-weight:600; color:var(--ink-mute); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <header class="edit-topbar">
+      <a class="back-btn" href="settings.html"><i class="ph ph-arrow-left"></i></a>
+      <h1 class="page-title">차단한 사용자</h1>
+    </header>
+
+    <div class="empty-card" id="block-empty" hidden>
+      <i class="ph ph-prohibit"></i>
+      <div class="empty-card-title">차단한 사용자가 없어요</div>
+      <div class="empty-card-sub">불쾌한 사용자가 있다면 매칭/채팅에서 신고·차단할 수 있어요</div>
+    </div>
+
+    <template id="tmpl-block">
+      <div class="block-card">
+        <div class="block-avatar"><i class="ph ph-user"></i></div>
+        <div class="block-info">
+          <div class="block-nick">—</div>
+          <div class="block-date">—</div>
+        </div>
+        <button class="btn-unblock" type="button">해제</button>
+      </div>
+    </template>
+    <div class="block-list" id="block-list"></div>
+
+    <div style="height:env(safe-area-inset-bottom,0px)"></div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootBlocks());</script>
+</body>
+</html>

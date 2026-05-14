@@ -54,6 +54,12 @@ class MarkAllReadResponse(BaseModel):
     message: str
 
 
+class NotificationReadResponse(BaseModel):
+    id: int
+    is_read: bool
+    updated: bool  # True: 이 호출로 갱신됨 / False: 이미 읽은 상태였음(멱등)
+
+
 # ─── 마이페이지: 카테고리별 push 알림 설정 ────────────────────────────────────
 
 

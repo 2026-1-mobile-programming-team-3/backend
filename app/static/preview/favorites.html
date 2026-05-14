@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 즐겨찾기 매장</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .edit-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 12px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .page-title { font-size:18px; font-weight:900; color:var(--ink); flex:1; text-align:center; padding-right:36px; }
+
+    .fav-list { padding:0 24px; display:flex; flex-direction:column; gap:10px; }
+    .fav-card {
+      display:flex; gap:12px; padding:12px;
+      background:var(--card); border:1px solid var(--line); border-radius:var(--r-xl);
+      text-decoration:none; color:inherit; box-shadow:var(--shadow-xs);
+      transition:transform 0.18s var(--spring);
+    }
+    .fav-card:active { transform:scale(0.985); }
+    .fav-thumb { width:72px; height:72px; border-radius:var(--r-md); object-fit:cover; flex-shrink:0;
+      background:linear-gradient(135deg,var(--sand-soft),var(--accent-soft)); }
+    .fav-body { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:4px; }
+    .fav-cat { font-size:11px; font-weight:800; color:var(--accent); letter-spacing:0.02em; }
+    .fav-name { font-size:14.5px; font-weight:900; color:var(--ink); letter-spacing:-0.025em; }
+    .fav-rating-row { font-size:12px; font-weight:700; color:var(--ink-mute); display:inline-flex; align-items:center; gap:4px; }
+    .fav-rating-row i { font-size:11px; color:var(--star); }
+    .fav-remove {
+      width:36px; height:36px; border-radius:50%;
+      background:none; border:none; cursor:pointer; color:var(--raspberry);
+      align-self:center; flex-shrink:0;
+    }
+    .fav-remove i { font-size:18px; }
+    .empty-card {
+      margin:60px 24px; padding:40px 20px;
+      background:var(--card); border:1px dashed var(--line);
+      border-radius:var(--r-xl); text-align:center;
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .empty-card i { font-size:36px; color:var(--ink-mute); }
+    .empty-card-title { font-size:14px; font-weight:800; color:var(--ink); }
+    .empty-card-sub { font-size:12px; font-weight:600; color:var(--ink-mute); }
+    .empty-card a {
+      margin-top:8px; padding:9px 16px; border-radius:999px; background:var(--accent); color:#fff;
+      font-size:12.5px; font-weight:800; text-decoration:none;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <header class="edit-topbar">
+      <a class="back-btn" href="my.html"><i class="ph ph-arrow-left"></i></a>
+      <h1 class="page-title">즐겨찾기 매장</h1>
+    </header>
+
+    <div class="empty-card" id="fav-empty" hidden>
+      <i class="ph ph-heart"></i>
+      <div class="empty-card-title">아직 즐겨찾은 매장이 없어요</div>
+      <div class="empty-card-sub">지도에서 마음에 드는 매장을 즐겨찾기에 담아보세요</div>
+      <a href="map.html">지도 보러가기</a>
+    </div>
+
+    <template id="tmpl-fav">
+      <a class="fav-card">
+        <img class="fav-thumb" alt="" loading="lazy" />
+        <div class="fav-body">
+          <span class="fav-cat">—</span>
+          <span class="fav-name">—</span>
+          <span class="fav-rating-row"><i class="ph-fill ph-star"></i><span class="fav-rating">—</span></span>
+        </div>
+        <button type="button" class="fav-remove" title="즐겨찾기 해제"><i class="ph ph-heart-break"></i></button>
+      </a>
+    </template>
+    <div class="fav-list" id="fav-list"></div>
+
+    <div style="height:env(safe-area-inset-bottom,0px)"></div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootFavorites());</script>
+</body>
+</html>

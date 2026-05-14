@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5EDDE" />
+  <title>시흥가개 — 정책 캘린더</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/variable/woff2/SUIT-Variable.css" />
+  <link rel="stylesheet" href="styles-v3.css" />
+  <style>
+    .edit-topbar { display:flex; align-items:center; gap:12px; padding:18px 24px 16px; }
+    .back-btn { width:36px; height:36px; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; text-decoration:none; color:var(--ink-soft); }
+    .page-title { font-size:18px; font-weight:900; color:var(--ink); flex:1; text-align:center; padding-right:36px; }
+
+    .cal-header { display:flex; align-items:center; justify-content:center; gap:24px; padding:8px 24px 16px; }
+    .cal-nav-btn { width:32px; height:32px; border-radius:50%; background:var(--card); border:1px solid var(--line);
+      display:flex; align-items:center; justify-content:center; cursor:pointer; }
+    .cal-nav-btn i { font-size:14px; color:var(--ink-soft); }
+    .cal-month-label { font-size:16px; font-weight:900; color:var(--ink); letter-spacing:-0.03em; }
+
+    .cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); text-align:center;
+      font-size:12px; font-weight:800; color:var(--ink-mute); padding:0 16px 6px; }
+    .cal-weekdays > span:first-child { color:var(--raspberry); }
+    .cal-weekdays > span:last-child { color:#4A90E2; }
+
+    #cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; padding:0 16px; }
+    .cal-cell { aspect-ratio:1; border-radius:12px; background:var(--card); border:1px solid var(--line);
+      position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      cursor:default; font-size:13.5px; font-weight:700; color:var(--ink); transition:background 0.15s; }
+    .cal-cell.empty { background:transparent; border:none; }
+    .cal-cell.has-event { background:var(--accent-soft); cursor:pointer; }
+    .cal-cell.has-event:active { background:var(--accent-dim); }
+    .cal-event-dot { width:5px; height:5px; border-radius:50%; background:var(--accent); margin-top:2px; }
+
+    .legend { display:flex; gap:14px; padding:20px 24px; font-size:12.5px; font-weight:700; color:var(--ink-mute); }
+    .legend-item { display:inline-flex; align-items:center; gap:5px; }
+    .legend-item .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <main class="screen">
+    <header class="edit-topbar">
+      <a class="back-btn" href="news.html"><i class="ph ph-arrow-left"></i></a>
+      <h1 class="page-title">정책 캘린더</h1>
+    </header>
+
+    <div class="cal-header">
+      <button class="cal-nav-btn" type="button" id="cal-prev"><i class="ph ph-caret-left"></i></button>
+      <span class="cal-month-label" id="cal-month-label">—</span>
+      <button class="cal-nav-btn" type="button" id="cal-next"><i class="ph ph-caret-right"></i></button>
+    </div>
+
+    <div class="cal-weekdays">
+      <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+    </div>
+    <div id="cal-grid"></div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="dot"></span>정책 일정 있음</div>
+    </div>
+
+    <div style="height:env(safe-area-inset-bottom,0px)"></div>
+  </main>
+</div>
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js"></script>
+<script src="preview-app.js"></script>
+<script>document.addEventListener("DOMContentLoaded", () => PreviewApp.bootCalendar());</script>
+</body>
+</html>

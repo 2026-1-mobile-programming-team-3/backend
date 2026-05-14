@@ -1,5 +1,5 @@
 import math
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -40,6 +40,7 @@ class MatchCreateRequest(BaseModel):
     longitude: float = Field(ge=-180, le=180)
     address: str | None = Field(default=None, max_length=255)
     desired_date: date | None = None
+    desired_time: time | None = None
     pet_id: int | None = None
 
     @field_validator("latitude", "longitude")
@@ -64,6 +65,7 @@ class MatchListItem(BaseModel):
     latitude: float
     longitude: float
     desired_date: date | None
+    desired_time: time | None = None
     status: MatchStatus
     author_nickname: str | None
     created_at: datetime
@@ -101,6 +103,7 @@ class MatchDetail(BaseModel):
     latitude: float
     longitude: float
     desired_date: date | None
+    desired_time: time | None = None
     status: MatchStatus
     applications_count: int
     created_at: datetime
@@ -167,6 +170,7 @@ class MatchUpdateRequest(BaseModel):
     longitude: float | None = Field(default=None, ge=-180, le=180)
     address: str | None = Field(default=None, max_length=255)
     desired_date: date | None = None
+    desired_time: time | None = None
     pet_id: int | None = None
 
     @field_validator("latitude", "longitude")

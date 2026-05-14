@@ -301,7 +301,7 @@
       <div class="tb-left">
         <h1 class="tb-title">마이</h1>
       </div>
-      <button class="tb-icon-btn"><i class="ph ph-gear-six"></i></button>
+      <a class="tb-icon-btn" href="settings.html" aria-label="설정"><i class="ph ph-gear-six"></i></a>
     </header>
 
     <!-- 프로필 -->
@@ -329,15 +329,15 @@
     <!-- 활동 통계 -->
     <div class="section-label anim-fade-slide-up delay-3">활동</div>
     <div class="stats-grid anim-fade-slide-up delay-3">
-      <a class="stat-card" href="#">
+      <a class="stat-card" href="my-matches.html?role=author">
         <div class="stat-num" style="color:var(--raspberry)" data-bind="my_match_count">3</div>
         <div class="stat-label">내 요청</div>
       </a>
-      <a class="stat-card" href="#">
+      <a class="stat-card" href="my-matches.html?role=applicant">
         <div class="stat-num" style="color:var(--mint)" data-bind="volunteer_completed_count">2</div>
         <div class="stat-label">봉사 참여</div>
       </a>
-      <a class="stat-card" href="#">
+      <a class="stat-card" href="favorites.html">
         <div class="stat-num" style="color:var(--accent)" data-bind="favorite_count">5</div>
         <div class="stat-label">즐겨찾기</div>
       </a>
@@ -444,22 +444,24 @@
     <!-- 메뉴 그룹 1 -->
     <div class="section-label anim-fade-slide-up delay-4">내 기록</div>
     <div class="menu-group anim-fade-slide-up delay-4">
-      <a class="menu-row" href="my-matches.html">
+      <a class="menu-row" href="my-matches.html?role=author">
         <span class="menu-icon" style="background:var(--raspberry-dim)"><i class="ph ph-clipboard-text" style="color:var(--raspberry)"></i></span>
-        <span class="menu-label">전체 요청 이력</span>
-        <span class="menu-badge" style="background:var(--raspberry)">4</span>
+        <span class="menu-label">내 요청 이력</span>
         <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
       </a>
-      <a class="menu-row" href="#">
+      <a class="menu-row" href="my-matches.html?role=applicant">
         <span class="menu-icon" style="background:var(--mint-dim)"><i class="ph ph-hand-heart" style="color:var(--mint)"></i></span>
         <span class="menu-label">봉사 활동 이력</span>
-        <span class="menu-badge" style="background:var(--mint)">2</span>
         <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
       </a>
-      <a class="menu-row" href="#">
+      <a class="menu-row" href="favorites.html">
         <span class="menu-icon" style="background:var(--accent-dim)"><i class="ph ph-heart" style="color:var(--accent)"></i></span>
         <span class="menu-label">즐겨찾기 매장</span>
-        <span class="menu-badge" style="background:var(--accent)">5</span>
+        <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
+      </a>
+      <a class="menu-row" href="calendar.html">
+        <span class="menu-icon" style="background:rgba(122,155,110,0.18)"><i class="ph ph-calendar" style="color:var(--mint)"></i></span>
+        <span class="menu-label">정책 캘린더</span>
         <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
       </a>
     </div>
@@ -467,28 +469,36 @@
     <!-- 메뉴 그룹 2 -->
     <div class="section-label anim-fade-slide-up delay-5">설정</div>
     <div class="menu-group anim-fade-slide-up delay-5">
-      <a class="menu-row" href="#">
+      <a class="menu-row" href="notifications.html">
         <span class="menu-icon" style="background:rgba(30,18,10,0.06)"><i class="ph ph-bell" style="color:var(--ink-soft)"></i></span>
-        <span class="menu-label">알림 설정</span>
+        <span class="menu-label">알림 보관함</span>
         <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
       </a>
-      <a class="menu-row" href="#">
-        <span class="menu-icon" style="background:rgba(30,18,10,0.06)"><i class="ph ph-map-pin" style="color:var(--ink-soft)"></i></span>
-        <span class="menu-label">지역 설정</span>
-        <span class="menu-sub">정왕동</span>
+      <a class="menu-row" href="settings.html">
+        <span class="menu-icon" style="background:rgba(30,18,10,0.06)"><i class="ph ph-gear-six" style="color:var(--ink-soft)"></i></span>
+        <span class="menu-label">설정</span>
         <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
       </a>
-      <a class="menu-row" href="#">
+      <a class="menu-row" href="blocks.html">
+        <span class="menu-icon" style="background:rgba(30,18,10,0.06)"><i class="ph ph-prohibit" style="color:var(--ink-soft)"></i></span>
+        <span class="menu-label">차단한 사용자</span>
+        <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
+      </a>
+      <a class="menu-row" href="volunteer-request.html">
+        <span class="menu-icon" style="background:rgba(122,155,110,0.18)"><i class="ph ph-medal" style="color:var(--mint)"></i></span>
+        <span class="menu-label">봉사자 자격 신청</span>
+        <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
+      </a>
+      <a class="menu-row" href="/policy.html">
         <span class="menu-icon" style="background:rgba(30,18,10,0.06)"><i class="ph ph-shield" style="color:var(--ink-soft)"></i></span>
-        <span class="menu-label">개인정보 및 보안</span>
+        <span class="menu-label">개인정보 처리방침</span>
         <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
       </a>
-      <a class="menu-row" href="#">
+      <div class="menu-row" style="cursor:default">
         <span class="menu-icon" style="background:rgba(30,18,10,0.06)"><i class="ph ph-info" style="color:var(--ink-soft)"></i></span>
         <span class="menu-label">앱 정보</span>
         <span class="menu-sub">v3.0.0</span>
-        <span class="menu-arrow"><i class="ph ph-caret-right"></i></span>
-      </a>
+      </div>
     </div>
 
     <button class="logout-btn anim-fade-slide-up delay-5" onclick="Auth.logout()"><i class="ph-bold ph-sign-out"></i>로그아웃</button>

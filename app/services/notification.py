@@ -162,3 +162,22 @@ async def mark_all_read(
         updated_count=count,
         message=f"{count}건의 알림을 읽음 처리했습니다.",
     )
+
+
+async def mark_one_read(
+    db: AsyncSession, *, user_id: int, notification_id: int
+) -> dict:
+    """단건 읽음 처리. 본인 소유 아니면 404. 이미 읽은 알림은 멱등 처리."""
+    found, was_unread = await notification_crud.mark_one_read(
+        db, user_id=user_id, notification_id=notification_id
+    )
+    if not found:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="해당 알림을 찾을 수 없습니다.",
+        )
+    return {
+        "id": notification_id,
+        "is_read": True,
+        "updated": was_unread,
+    }

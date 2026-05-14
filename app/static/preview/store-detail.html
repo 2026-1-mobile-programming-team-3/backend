@@ -28,9 +28,10 @@
     .meta-row i { font-size:15px; color:var(--ink-mute); }
     .section-title { font-size:15px; font-weight:900; color:var(--ink); padding:0 24px; margin-bottom:12px; margin-top:4px; }
     .review-item { padding:14px 24px; border-bottom:1px solid var(--line); }
-    .rv-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; }
+    .rv-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; gap:8px; }
     .rv-nick { font-size:13px; font-weight:800; color:var(--ink); }
-    .rv-rating { color:var(--star,#F5A623); font-size:12px; letter-spacing:1px; }
+    .rv-rating { color:var(--star,#F5A623); font-size:12px; letter-spacing:1px; flex:1; }
+    .rv-date { font-size:11.5px; font-weight:700; color:var(--ink-mute); }
     .rv-body { font-size:13px; font-weight:600; color:var(--ink-soft); line-height:1.6; }
     .review-form { padding:16px 24px; display:flex; flex-direction:column; gap:10px; }
     .form-field { width:100%; padding:12px 14px; border-radius:var(--r-lg); border:1.5px solid var(--line);
@@ -52,8 +53,8 @@
     </div>
     <div class="store-hero">
       <div class="store-name" data-bind="name">—</div>
-      <div class="store-cat" data-bind="category">—</div>
-      <div class="store-rating"><span class="star">★</span><span data-bind="avg_rating">—</span> · <span data-bind="review_count">0</span>개 리뷰</div>
+      <div class="store-cat" data-bind="category_label">—</div>
+      <div class="store-rating"><span class="star">★</span><span data-bind="avg_rating">—</span> · 리뷰 <span data-bind="review_count">0</span>개</div>
     </div>
     <div class="mini-map" id="store-mini-map"></div>
     <div class="store-meta">
@@ -66,12 +67,14 @@
         <div class="rv-head">
           <span class="rv-nick">—</span>
           <span class="rv-rating">—</span>
+          <span class="rv-date">—</span>
         </div>
         <div class="rv-body">—</div>
       </div>
     </template>
     <div id="review-list"></div>
     <div class="section-title" style="margin-top:20px">리뷰 작성</div>
+    <div id="review-empty" hidden style="padding:24px;text-align:center;color:var(--ink-mute);font-size:12.5px;font-weight:600">아직 리뷰가 없어요. 첫 리뷰를 남겨주세요!</div>
     <form class="review-form" id="review-form">
       <select class="form-field" id="rv-stars">
         <option value="">별점 선택</option>
@@ -81,7 +84,11 @@
         <option value="2">★★ 2점</option>
         <option value="1">★ 1점</option>
       </select>
-      <textarea class="form-field" id="rv-content" placeholder="리뷰를 남겨주세요" rows="3"></textarea>
+      <textarea class="form-field" id="rv-content" placeholder="리뷰를 남겨주세요 (최대 2000자)" rows="3" maxlength="2000"></textarea>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink-soft);">
+        <input type="checkbox" id="rv-pet-allowed" checked />
+        방문 당시 반려동물 동반 가능했어요
+      </label>
       <button class="btn-primary" type="submit">등록</button>
     </form>
     <div class="safe-area"></div>
