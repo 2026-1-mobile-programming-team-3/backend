@@ -1,11 +1,16 @@
+import asyncio
+import logging
+
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import firebase as fcm
 from app.crud import notification as notification_crud
 from app.models.enums import NotificationCategory
 from app.models.notification import Notification, NotificationSetting
+from app.models.user import Device
 from app.schemas.notification import (
     DeviceRegisteredResponse,
     DeviceRegisterRequest,
@@ -14,6 +19,8 @@ from app.schemas.notification import (
     NotificationListResponse,
     UnreadCountResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def _is_category_enabled(
@@ -36,12 +43,18 @@ async def enqueue(
     title: str,
     body: str,
     link: str | None = None,
+    data: dict[str, str] | None = None,
+    push: bool = True,
 ) -> Notification | None:
-    """알림 1건을 DB에 적재. 호출자는 commit 책임을 가진다.
+    """알림 1건을 DB에 적재하고 (선택) FCM 푸시를 commit 후로 스케줄.
 
     사용자가 해당 카테고리를 OFF로 설정한 경우(`notification_settings.push_enabled=False`)
     적재 자체를 건너뛰고 `None`을 반환한다 — 인앱·푸시 모두 노출되지 않는다.
     행이 없으면 기본 ON.
+
+    푸시 발송은 `push=True` 이고 Firebase 가 ready 일 때만 등록되며,
+    `db.commit()` 성공 직후 db/session.py 의 after_commit 훅이 fire-and-forget 실행한다.
+    rollback 시에는 자동으로 폐기.
     """
     if not await _is_category_enabled(db, user_id=user_id, category=category):
         return None
@@ -53,7 +66,58 @@ async def enqueue(
         link=link,
     )
     db.add(notification)
+
+    if push and fcm.is_ready():
+        payload = {
+            "category": category.value if hasattr(category, "value") else str(category),
+            "link": link or "",
+        }
+        if data:
+            for k, v in data.items():
+                payload.setdefault(k, "" if v is None else str(v))
+        pending = db.sync_session.info.setdefault("pending_pushes", [])
+        pending.append(_make_push_closure(user_id, title, body, payload))
+
     return notification
+
+
+def _make_push_closure(user_id: int, title: str, body: str, data: dict[str, str]):
+    """after_commit 시점에 호출될 비동기 함수 팩토리."""
+
+    async def _push() -> None:
+        try:
+            await _dispatch_push_to_user(
+                user_id=user_id, title=title, body=body, data=data
+            )
+        except Exception:
+            logger.exception("FCM dispatch 실패 (user_id=%s)", user_id)
+
+    return _push
+
+
+async def _dispatch_push_to_user(
+    *, user_id: int, title: str, body: str, data: dict[str, str]
+) -> None:
+    """별도 세션을 열어 사용자의 device 토큰을 가져와 FCM 발송. 무효 토큰은 삭제."""
+    if not fcm.is_ready():
+        return
+    # 요청 세션은 이미 닫혔을 가능성이 높아 새 세션을 연다.
+    from app.db.session import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as db:
+        rows = await db.execute(
+            select(Device.fcm_token).where(Device.user_id == user_id)
+        )
+        tokens = [t for t in rows.scalars().all() if t]
+        if not tokens:
+            return
+        # firebase-admin 은 blocking 이므로 worker thread 로 위임.
+        invalid = await asyncio.to_thread(
+            fcm.send_to_tokens, tokens, title=title, body=body, data=data
+        )
+        if invalid:
+            await db.execute(delete(Device).where(Device.fcm_token.in_(invalid)))
+            await db.commit()
 
 
 # ─── 마이페이지: 카테고리별 push 알림 설정 ────────────────────────────────────

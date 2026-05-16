@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     KAKAO_REST_API_KEY: str
     NEWS_CACHE_TTL: int = 3600  # 1시간 (이전 4시간 → 단축)
 
+    # Firebase Cloud Messaging (선택). 둘 다 미설정이면 FCM 푸시는 no-op.
+    # - FIREBASE_CREDENTIALS_PATH: 로컬 파일 경로 (개발/로컬)
+    # - FIREBASE_CREDENTIALS_JSON: 서비스 계정 JSON 전체를 문자열로 (Railway 등 PaaS)
+    FIREBASE_CREDENTIALS_PATH: str | None = None
+    FIREBASE_CREDENTIALS_JSON: str | None = None
+
     @property
     def ADMIN_SESSION_KEY(self) -> str:
         """ADMIN_SESSION_SECRET가 설정돼 있으면 그것을, 없으면 JWT 키 + 고정 솔트로 분리."""
