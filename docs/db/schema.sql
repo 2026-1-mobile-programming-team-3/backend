@@ -2,11 +2,11 @@
 -- 시흥가개 DB Schema
 -- PostgreSQL 16 / PostGIS 3.x
 --
+-- 코드(`app/models/*.py`) 기준 단방향 동기화. 실제 마이그레이션은 Alembic.
 -- 자세한 설계 근거는 같은 폴더의 db-design.md 참조.
--- 테이블 우선순위: T0 (MVP) → T1 (안정화) → T2 (확장)
+-- 테이블 우선순위: T0 (MVP) → T1 (안정화)
 --
 -- 모든 테이블·컬럼에 COMMENT ON 으로 한글 설명을 부여한다.
--- (dbdiagram.io 임포트 시 컬럼 노트로 변환되어 다이어그램에서 확인 가능)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -16,16 +16,21 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 
 
 -- -----------------------------------------------------------------------------
--- 1. ENUM TYPES
+-- 1. ENUM TYPES  (app/models/enums.py 기준)
 -- -----------------------------------------------------------------------------
 CREATE TYPE user_role                AS ENUM ('USER', 'VOLUNTEER', 'ADMIN');
 CREATE TYPE pet_species              AS ENUM ('DOG', 'CAT', 'OTHER');
+CREATE TYPE pet_gender               AS ENUM ('MALE', 'FEMALE', 'UNKNOWN');
 CREATE TYPE notification_category    AS ENUM ('VOLUNTEER', 'MATCH', 'REVIEW', 'NEWS', 'POLICY', 'SYSTEM');
 CREATE TYPE match_status             AS ENUM ('WAITING', 'MATCHING', 'PROGRESS', 'DONE');
 CREATE TYPE application_status       AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
 CREATE TYPE volunteer_request_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 CREATE TYPE store_category           AS ENUM ('CAFE', 'RESTAURANT', 'PARK');
 CREATE TYPE store_status             AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+CREATE TYPE report_type              AS ENUM ('USER', 'CHAT');
+
+-- 참고: VolunteerBadgeTier(NONE/SEED/FLOWER/FRUIT/TREE)는 활동 통계 응답용으로
+-- 앱 레벨에서 derive 된다. DB 컬럼·enum 으로 존재하지 않음.
 
 
 -- =============================================================================
@@ -43,6 +48,8 @@ CREATE TABLE users (
     phone              VARCHAR(20),
     role               user_role       NOT NULL DEFAULT 'USER',
     profile_image_url  TEXT,
+    region_si          VARCHAR(50),
+    region_dong        VARCHAR(50),
     created_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     deleted_at         TIMESTAMPTZ
@@ -60,6 +67,8 @@ COMMENT ON COLUMN users.nickname             IS '닉네임 (2~20자, 유일값)'
 COMMENT ON COLUMN users.phone                IS '연락처 (선택)';
 COMMENT ON COLUMN users.role                 IS '권한 등급 (USER/VOLUNTEER/ADMIN)';
 COMMENT ON COLUMN users.profile_image_url    IS '프로필 이미지 URL (외부 스토리지)';
+COMMENT ON COLUMN users.region_si            IS '거주 시 (예: 시흥시)';
+COMMENT ON COLUMN users.region_dong          IS '거주 동 (예: 정왕동)';
 COMMENT ON COLUMN users.created_at           IS '가입 시각';
 COMMENT ON COLUMN users.updated_at           IS '정보 수정 시각';
 COMMENT ON COLUMN users.deleted_at           IS '탈퇴 시각 (soft delete, 30일 후 영구 삭제)';
@@ -127,6 +136,7 @@ CREATE TABLE pets (
     age          SMALLINT,
     weight_kg    NUMERIC(5,2),
     is_neutered  BOOLEAN       NOT NULL DEFAULT FALSE,
+    gender       pet_gender    NOT NULL DEFAULT 'UNKNOWN',
     photo_url    TEXT,
     created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
@@ -145,6 +155,7 @@ COMMENT ON COLUMN pets.breed        IS '품종 (선택)';
 COMMENT ON COLUMN pets.age          IS '나이 (>= 0, 선택)';
 COMMENT ON COLUMN pets.weight_kg    IS '체중 kg (> 0, 선택)';
 COMMENT ON COLUMN pets.is_neutered  IS '중성화 여부';
+COMMENT ON COLUMN pets.gender       IS '성별 (MALE/FEMALE/UNKNOWN, 기본 UNKNOWN)';
 COMMENT ON COLUMN pets.photo_url    IS '사진 URL (외부 스토리지)';
 COMMENT ON COLUMN pets.created_at   IS '등록 시각';
 COMMENT ON COLUMN pets.updated_at   IS '정보 수정 시각';
@@ -168,7 +179,7 @@ CREATE TABLE notifications (
 CREATE INDEX idx_notifications_user_created
     ON notifications (user_id, created_at DESC);
 
--- 안읽음 카운트/목록 — read_at IS NULL 부분 인덱스
+-- 안 읽음 카운트/목록 — read_at IS NULL 부분 인덱스
 CREATE INDEX idx_notifications_user_unread
     ON notifications (user_id, created_at DESC)
     WHERE read_at IS NULL;
@@ -185,7 +196,25 @@ COMMENT ON COLUMN notifications.created_at  IS '생성 시각';
 
 
 -- -----------------------------------------------------------------------------
--- 1.6 matches  (이동 지원 요청 글)
+-- 1.6 notification_settings  (카테고리별 push on/off)
+-- -----------------------------------------------------------------------------
+CREATE TABLE notification_settings (
+    user_id       BIGINT                 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category      notification_category  NOT NULL,
+    push_enabled  BOOLEAN                NOT NULL DEFAULT TRUE,
+    updated_at    TIMESTAMPTZ            NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, category)
+);
+
+COMMENT ON TABLE  notification_settings              IS '카테고리별 push 알림 on/off 설정 (행이 없는 카테고리는 ON 으로 간주)';
+COMMENT ON COLUMN notification_settings.user_id      IS '사용자 FK (PK 일부)';
+COMMENT ON COLUMN notification_settings.category     IS '카테고리 (PK 일부)';
+COMMENT ON COLUMN notification_settings.push_enabled IS 'true = push 발송 허용';
+COMMENT ON COLUMN notification_settings.updated_at   IS '변경 시각';
+
+
+-- -----------------------------------------------------------------------------
+-- 1.7 matches  (이동 지원 요청 글)
 -- -----------------------------------------------------------------------------
 CREATE TABLE matches (
     id            BIGSERIAL                  PRIMARY KEY,
@@ -196,6 +225,7 @@ CREATE TABLE matches (
     location      GEOGRAPHY(POINT, 4326)     NOT NULL,
     address       VARCHAR(255),
     desired_date  DATE,
+    desired_time  TIME,
     status        match_status               NOT NULL DEFAULT 'WAITING',
     created_at    TIMESTAMPTZ                NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ                NOT NULL DEFAULT NOW(),
@@ -217,7 +247,8 @@ COMMENT ON COLUMN matches.title         IS '제목';
 COMMENT ON COLUMN matches.content       IS '본문';
 COMMENT ON COLUMN matches.location      IS '출발/픽업 좌표 (PostGIS Point, SRID 4326)';
 COMMENT ON COLUMN matches.address       IS '사람이 읽는 주소';
-COMMENT ON COLUMN matches.desired_date  IS '희망 일정';
+COMMENT ON COLUMN matches.desired_date  IS '희망 일정 (날짜)';
+COMMENT ON COLUMN matches.desired_time  IS '희망 시간 (HH:MM, 선택)';
 COMMENT ON COLUMN matches.status        IS '진행 상태 (WAITING → MATCHING → PROGRESS → DONE)';
 COMMENT ON COLUMN matches.created_at    IS '작성 시각';
 COMMENT ON COLUMN matches.updated_at    IS '수정 시각';
@@ -225,7 +256,7 @@ COMMENT ON COLUMN matches.deleted_at    IS '삭제 시각 (soft delete)';
 
 
 -- -----------------------------------------------------------------------------
--- 1.7 match_applications
+-- 1.8 match_applications
 -- -----------------------------------------------------------------------------
 CREATE TABLE match_applications (
     id            BIGSERIAL           PRIMARY KEY,
@@ -257,7 +288,22 @@ COMMENT ON COLUMN match_applications.updated_at   IS '상태 변경 시각';
 
 
 -- -----------------------------------------------------------------------------
--- 1.8 stores
+-- 1.9 chat_rooms  (신청 1건 = 채팅방 1개)
+-- -----------------------------------------------------------------------------
+CREATE TABLE chat_rooms (
+    id              BIGSERIAL    PRIMARY KEY,
+    application_id  BIGINT       NOT NULL UNIQUE REFERENCES match_applications(id) ON DELETE CASCADE,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE  chat_rooms                IS '채팅방. 첫 메시지 시 자동 생성. 신청 1건 = 채팅방 1개 (작성자 ↔ 신청자 1:1).';
+COMMENT ON COLUMN chat_rooms.id             IS '채팅방 ID';
+COMMENT ON COLUMN chat_rooms.application_id IS '대상 신청 FK (UNIQUE)';
+COMMENT ON COLUMN chat_rooms.created_at     IS '생성 시각';
+
+
+-- -----------------------------------------------------------------------------
+-- 1.10 stores
 -- -----------------------------------------------------------------------------
 CREATE TABLE stores (
     id               BIGSERIAL                PRIMARY KEY,
@@ -310,7 +356,7 @@ COMMENT ON COLUMN stores.deleted_at       IS '삭제 시각 (soft delete)';
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 2.1 volunteer_requests  (봉사자 역할 전환 요청 - 간소화)
+-- 2.1 volunteer_requests  (봉사자 역할 전환 요청)
 -- -----------------------------------------------------------------------------
 CREATE TABLE volunteer_requests (
     id            BIGSERIAL                  PRIMARY KEY,
@@ -331,7 +377,7 @@ CREATE INDEX idx_volunteer_requests_status_created
 
 COMMENT ON TABLE  volunteer_requests              IS 'USER → VOLUNTEER 역할 전환 요청 (관리자 승인 대상)';
 COMMENT ON COLUMN volunteer_requests.id           IS '요청 ID';
-COMMENT ON COLUMN volunteer_requests.user_id     IS '신청자 FK';
+COMMENT ON COLUMN volunteer_requests.user_id      IS '신청자 FK';
 COMMENT ON COLUMN volunteer_requests.message      IS '신청자가 작성한 자유 텍스트 한 줄';
 COMMENT ON COLUMN volunteer_requests.status       IS '처리 상태 (PENDING → APPROVED / REJECTED)';
 COMMENT ON COLUMN volunteer_requests.processed_at IS '관리자 처리 시각';
@@ -339,31 +385,27 @@ COMMENT ON COLUMN volunteer_requests.created_at   IS '신청 시각';
 
 
 -- -----------------------------------------------------------------------------
--- 2.2 chat_messages  (match_applications 에 직접 연결 — 신청자별 1:1 스레드)
--- -----------------------------------------------------------------------------
--- 매칭 1건당 N개의 1:1 채팅 스레드(작성자 ↔ 각 신청자)가 존재한다.
--- 작성자는 신청자와 채팅으로 대화한 뒤 채팅방 안에서 매칭 수락/거절 결정.
--- application 단위로 묶이므로 어떤 신청자의 스레드인지 명확하다.
+-- 2.2 chat_messages  (chat_rooms 에 연결)
 -- -----------------------------------------------------------------------------
 CREATE TABLE chat_messages (
-    id              BIGSERIAL    PRIMARY KEY,
-    application_id  BIGINT       NOT NULL REFERENCES match_applications(id) ON DELETE CASCADE,
-    sender_id       BIGINT       REFERENCES users(id) ON DELETE SET NULL,
-    content         TEXT         NOT NULL,
-    read_at         TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    id            BIGSERIAL    PRIMARY KEY,
+    chat_room_id  BIGINT       NOT NULL REFERENCES chat_rooms(id) ON DELETE CASCADE,
+    sender_id     BIGINT       REFERENCES users(id) ON DELETE SET NULL,
+    content       TEXT         NOT NULL,
+    read_at       TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_chat_messages_application_created
-    ON chat_messages (application_id, created_at DESC);
+CREATE INDEX idx_chat_messages_room_created
+    ON chat_messages (chat_room_id, created_at DESC);
 
-COMMENT ON TABLE  chat_messages                IS '채팅 메시지 (스레드 = match_applications 1건, 작성자 ↔ 한 신청자 1:1)';
-COMMENT ON COLUMN chat_messages.id             IS '메시지 ID';
-COMMENT ON COLUMN chat_messages.application_id IS '대화가 속한 신청 FK (참여자는 application.match.author_id + application.applicant_id 두 명)';
-COMMENT ON COLUMN chat_messages.sender_id      IS '발신자 FK';
-COMMENT ON COLUMN chat_messages.content        IS '메시지 내용';
-COMMENT ON COLUMN chat_messages.read_at        IS '상대방이 읽은 시각';
-COMMENT ON COLUMN chat_messages.created_at     IS '발송 시각';
+COMMENT ON TABLE  chat_messages               IS '채팅 메시지. chat_rooms 가 application 단위 1:1 컨테이너를 보장한다.';
+COMMENT ON COLUMN chat_messages.id            IS '메시지 ID';
+COMMENT ON COLUMN chat_messages.chat_room_id  IS '소속 채팅방 FK';
+COMMENT ON COLUMN chat_messages.sender_id     IS '발신자 FK (SET NULL — 탈퇴 후에도 메시지 유지)';
+COMMENT ON COLUMN chat_messages.content       IS '메시지 내용';
+COMMENT ON COLUMN chat_messages.read_at       IS '상대방이 읽은 시각';
+COMMENT ON COLUMN chat_messages.created_at    IS '발송 시각';
 
 
 -- -----------------------------------------------------------------------------
@@ -374,12 +416,14 @@ CREATE TABLE match_reviews (
     match_id          BIGINT       NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
     reviewer_id       BIGINT       REFERENCES users(id) ON DELETE SET NULL,
     reviewee_id       BIGINT       REFERENCES users(id) ON DELETE SET NULL,
-    rating            SMALLINT     NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    rating            SMALLINT     NOT NULL,
     content           TEXT,
     proof_image_urls  TEXT[],
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     UNIQUE (match_id, reviewer_id),
-    CHECK (reviewer_id IS NULL OR reviewee_id IS NULL OR reviewer_id <> reviewee_id)
+    CONSTRAINT ck_match_reviews_rating CHECK (rating BETWEEN 1 AND 5),
+    CONSTRAINT ck_match_reviews_different_users
+        CHECK (reviewer_id IS NULL OR reviewee_id IS NULL OR reviewer_id <> reviewee_id)
 );
 
 CREATE INDEX idx_match_reviews_reviewee
@@ -388,8 +432,8 @@ CREATE INDEX idx_match_reviews_reviewee
 COMMENT ON TABLE  match_reviews                  IS '봉사 완료 후 양측이 서로 작성하는 후기 (통계의 원천 데이터)';
 COMMENT ON COLUMN match_reviews.id               IS '후기 ID';
 COMMENT ON COLUMN match_reviews.match_id         IS '대상 매칭 FK';
-COMMENT ON COLUMN match_reviews.reviewer_id      IS '작성자 FK';
-COMMENT ON COLUMN match_reviews.reviewee_id      IS '대상자 FK (작성자와 달라야 함)';
+COMMENT ON COLUMN match_reviews.reviewer_id      IS '작성자 FK (SET NULL)';
+COMMENT ON COLUMN match_reviews.reviewee_id      IS '대상자 FK (SET NULL)';
 COMMENT ON COLUMN match_reviews.rating           IS '평점 (1~5)';
 COMMENT ON COLUMN match_reviews.content          IS '후기 내용';
 COMMENT ON COLUMN match_reviews.proof_image_urls IS '봉사 인증 사진 URL 배열';
@@ -403,12 +447,13 @@ CREATE TABLE store_reviews (
     id              BIGSERIAL    PRIMARY KEY,
     store_id        BIGINT       NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     author_id       BIGINT       REFERENCES users(id) ON DELETE SET NULL,
-    rating          SMALLINT     NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    rating          SMALLINT     NOT NULL,
     is_pet_allowed  BOOLEAN      NOT NULL,
     content         TEXT         NOT NULL,
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    UNIQUE (store_id, author_id)
+    UNIQUE (store_id, author_id),
+    CONSTRAINT ck_store_reviews_rating CHECK (rating BETWEEN 1 AND 5)
 );
 
 CREATE INDEX idx_store_reviews_store_created
@@ -417,7 +462,7 @@ CREATE INDEX idx_store_reviews_store_created
 COMMENT ON TABLE  store_reviews                IS '매장 별점·리뷰 (반려동물 출입 가능 여부도 사용자 확인 형태로 수집)';
 COMMENT ON COLUMN store_reviews.id             IS '리뷰 ID';
 COMMENT ON COLUMN store_reviews.store_id       IS '대상 매장 FK';
-COMMENT ON COLUMN store_reviews.author_id      IS '작성자 FK';
+COMMENT ON COLUMN store_reviews.author_id      IS '작성자 FK (SET NULL)';
 COMMENT ON COLUMN store_reviews.rating         IS '평점 (1~5)';
 COMMENT ON COLUMN store_reviews.is_pet_allowed IS '방문 당시 반려동물 출입 가능 여부 (작성자가 체크박스로 입력)';
 COMMENT ON COLUMN store_reviews.content        IS '리뷰 내용';
@@ -426,30 +471,85 @@ COMMENT ON COLUMN store_reviews.updated_at     IS '수정 시각';
 
 
 -- -----------------------------------------------------------------------------
--- 2.5 reports  (신고 - 간소화: 신고자/대상자/사유만 기록)
+-- 2.5 reports  (사용자/채팅 신고)
 -- -----------------------------------------------------------------------------
 CREATE TABLE reports (
     id              BIGSERIAL    PRIMARY KEY,
     reporter_id     BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     target_user_id  BIGINT       REFERENCES users(id) ON DELETE SET NULL,
+    report_type     report_type  NOT NULL DEFAULT 'USER',
+    chat_room_id    BIGINT       REFERENCES chat_rooms(id) ON DELETE SET NULL,
+    message_id      BIGINT       REFERENCES chat_messages(id) ON DELETE SET NULL,
     reason          TEXT         NOT NULL,
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    UNIQUE (reporter_id, target_user_id)
+    CONSTRAINT ck_reports_chat_refs
+        CHECK (report_type = 'USER' OR (chat_room_id IS NOT NULL AND message_id IS NOT NULL))
 );
+
+-- USER 신고는 reporter↔target 쌍이 유일. CHAT 신고는 메시지 단위라 자유.
+CREATE UNIQUE INDEX ux_reports_user_pair
+    ON reports (reporter_id, target_user_id)
+    WHERE report_type = 'USER';
 
 CREATE INDEX idx_reports_target_created
     ON reports (target_user_id, created_at DESC);
 
-COMMENT ON TABLE  reports                IS '사용자 신고 (관리자 검토용 단순 로그)';
+COMMENT ON TABLE  reports                IS '사용자/채팅 신고 (관리자 검토용 로그)';
 COMMENT ON COLUMN reports.id             IS '신고 ID';
 COMMENT ON COLUMN reports.reporter_id    IS '신고자 FK';
-COMMENT ON COLUMN reports.target_user_id IS '신고 대상 사용자 FK';
-COMMENT ON COLUMN reports.reason         IS '신고 사유 (자유 텍스트)';
+COMMENT ON COLUMN reports.target_user_id IS '신고 대상 사용자 FK (SET NULL)';
+COMMENT ON COLUMN reports.report_type    IS 'USER = 일반 신고, CHAT = 채팅 메시지 신고';
+COMMENT ON COLUMN reports.chat_room_id   IS 'CHAT 신고 시 대상 채팅방 FK';
+COMMENT ON COLUMN reports.message_id     IS 'CHAT 신고 시 대상 메시지 FK';
+COMMENT ON COLUMN reports.reason         IS '신고 사유 (1~2000자, 앱 레벨 검증)';
 COMMENT ON COLUMN reports.created_at     IS '신고 시각';
 
 
 -- -----------------------------------------------------------------------------
--- 2.6 calendar_events  (정책 일정)
+-- 2.6 user_blocks  (사용자 차단)
+-- -----------------------------------------------------------------------------
+CREATE TABLE user_blocks (
+    id          BIGSERIAL    PRIMARY KEY,
+    blocker_id  BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    blocked_id  BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_user_blocks_pair UNIQUE (blocker_id, blocked_id),
+    CONSTRAINT ck_user_blocks_no_self CHECK (blocker_id <> blocked_id)
+);
+
+CREATE INDEX idx_user_blocks_blocker
+    ON user_blocks (blocker_id, created_at DESC);
+
+COMMENT ON TABLE  user_blocks             IS '사용자 차단 (양방향 가시성 필터의 진실 공급원)';
+COMMENT ON COLUMN user_blocks.id          IS '차단 레코드 ID';
+COMMENT ON COLUMN user_blocks.blocker_id  IS '차단한 사용자 FK';
+COMMENT ON COLUMN user_blocks.blocked_id  IS '차단된 사용자 FK';
+COMMENT ON COLUMN user_blocks.created_at  IS '차단 시각';
+
+
+-- -----------------------------------------------------------------------------
+-- 2.7 store_favorites  (매장 즐겨찾기)
+-- -----------------------------------------------------------------------------
+CREATE TABLE store_favorites (
+    id          BIGSERIAL    PRIMARY KEY,
+    user_id     BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    store_id    BIGINT       NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_store_favorites_pair UNIQUE (user_id, store_id)
+);
+
+CREATE INDEX idx_store_favorites_user_created
+    ON store_favorites (user_id, created_at DESC);
+
+COMMENT ON TABLE  store_favorites             IS '매장 즐겨찾기 (한 사용자 ↔ 한 매장 한 row)';
+COMMENT ON COLUMN store_favorites.id          IS '즐겨찾기 레코드 ID';
+COMMENT ON COLUMN store_favorites.user_id     IS '사용자 FK';
+COMMENT ON COLUMN store_favorites.store_id    IS '매장 FK';
+COMMENT ON COLUMN store_favorites.created_at  IS '등록 시각';
+
+
+-- -----------------------------------------------------------------------------
+-- 2.8 calendar_events  (정책 일정)
 -- -----------------------------------------------------------------------------
 CREATE TABLE calendar_events (
     id           BIGSERIAL     PRIMARY KEY,
@@ -460,13 +560,13 @@ CREATE TABLE calendar_events (
     event_time   TIME,
     created_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-    CHECK (end_date >= start_date)
+    CONSTRAINT ck_calendar_events_dates CHECK (end_date >= start_date)
 );
 
 CREATE INDEX idx_calendar_events_dates
     ON calendar_events (start_date, end_date);
 
-COMMENT ON TABLE  calendar_events             IS '시흥시 반려동물 정책 일정';
+COMMENT ON TABLE  calendar_events             IS '시흥시 반려동물 정책 일정 (뉴스 본문은 별도 테이블 없이 네이버 API + Redis 캐시)';
 COMMENT ON COLUMN calendar_events.id          IS '일정 ID';
 COMMENT ON COLUMN calendar_events.title       IS '일정 제목';
 COMMENT ON COLUMN calendar_events.description IS '상세 설명';

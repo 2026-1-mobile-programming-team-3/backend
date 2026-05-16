@@ -1,10 +1,10 @@
 # API 명세서 — 홈 대시보드 (Home)
 
-공통 사항(Base URL, 헤더, 에러 코드 등)은 `auth.md` 참고.
+공통 사항(Base URL, 헤더, 에러 코드 등)은 `auth.md` 참고. 라우터 코드: `app/api/v1/home.py` (prefix `/home`, tag `Home`).
 
 ---
 
-## 5.1 홈 대시보드 조회 — `GET /home/dashboard` [T0]
+## 1. 홈 대시보드 조회 — `GET /home/dashboard` [T0]
 
 홈 화면 진입 시 필요한 어그리게이트 데이터(사용자 컨텍스트, 산책지수, 날씨, 매장 카운트, 매칭 요약, 알림 카운트)를 1회 호출로 반환.
 

@@ -1,6 +1,8 @@
 # API 명세서 — 반려동물 뉴스 캘린더 (News)
 
-공통 사항(Base URL, 헤더, 에러 코드 등)은 `auth.md` 참고.
+공통 사항(Base URL, 헤더, 에러 코드 등)은 `auth.md` 참고. 라우터 코드: `app/api/v1/news.py` (prefix `/news`, tag `News`).
+
+> 뉴스 본문 데이터는 네이버 뉴스 검색 API + og:image 스크래핑으로 Redis 캐시(4h/24h)에서 제공한다 — DB `news` 테이블은 존재하지 않는다. 캘린더는 `calendar_events` 테이블 기반.
 
 ---
 

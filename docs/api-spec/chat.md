@@ -1,6 +1,6 @@
 # API 명세서 — 채팅 (Chat)
 
-채팅 REST 엔드포인트는 매칭 도메인(`match.md` §3.10~3.12)에 포함되어 있다. 본 문서는 WebSocket 채널과 채팅방 모델의 운영 노트.
+라우터 코드: `app/api/v1/chats.py` (prefix `/ws`, tag `Chat WS`). 채팅 REST 엔드포인트는 매칭 도메인(`match.md` §3.10~3.12, 라우터 `matches.py`)에 포함된다. 본 문서는 WebSocket 채널과 채팅방 모델의 운영 노트.
 
 ---
 
