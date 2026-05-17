@@ -185,7 +185,7 @@ def _build_news_item(raw: dict) -> NewsItem:
         summary=summary,
         published_date=_parse_pub_date(raw.get("pubDate", "")),
         link=link,
-        image_url=None,  # 이후 _enrich_images() 에서 채움
+        image_url=None,  # 이후 _fill_images_from_cache / _enrich_and_recache 에서 채움
         category=_classify_category(f"{title} {summary}"),
         publisher=_extract_publisher(link),
     )
@@ -269,21 +269,72 @@ async def _call_naver_api() -> list[NewsItem]:
     return news_items[:20]
 
 
-async def _enrich_images(
+async def _fetch_og_image_cached_only(
+    redis: aioredis.Redis | None, link: str
+) -> str | None:
+    """og:image per-link 캐시만 조회 (스크래핑 없음).
+
+    응답 경로에서 외부 페이지로 HTTP 요청을 보내지 않기 위한 헬퍼.
+    캐시 hit 시 빈 문자열은 "이전에 찾지 못함" 을 의미한다.
+    """
+    if not link or redis is None:
+        return None
+    cache_key = _OG_CACHE_PREFIX + hashlib.sha256(link.encode()).hexdigest()[:16]
+    try:
+        cached = await redis.get(cache_key)
+        if cached is not None:
+            val = cached.decode() if isinstance(cached, bytes) else cached
+            return val or None
+    except Exception:
+        pass
+    return None
+
+
+async def _fill_images_from_cache(
     items: list[NewsItem], redis: aioredis.Redis | None
 ) -> list[NewsItem]:
-    """각 기사 link 에서 og:image 를 병렬 스크래핑해 image_url 을 채운다."""
+    """각 항목의 og:image 를 per-link 캐시에서만 채운다. 미스는 None 그대로."""
     if not items:
         return items
-    async with httpx.AsyncClient() as client:
-        images = await asyncio.gather(
-            *(_fetch_og_image(client, redis, item.link) for item in items),
-            return_exceptions=False,
+    images = await asyncio.gather(
+        *(_fetch_og_image_cached_only(redis, item.link) for item in items),
+    )
+    return [
+        item.model_copy(update={"image_url": img})
+        for item, img in zip(items, images)
+    ]
+
+
+async def _enrich_and_recache(
+    items: list[NewsItem], redis: aioredis.Redis | None
+) -> None:
+    """og:image 미캐시 항목만 스크래핑한 뒤 news:list 캐시를 다시 굽는다.
+
+    응답 경로 밖에서 fire-and-forget 으로 호출된다. 실패해도 캐시 갱신이
+    안 될 뿐 사용자 요청은 이미 응답을 받은 상태라 안전하다.
+    """
+    if not items or redis is None:
+        return
+    missing = [i for i, item in enumerate(items) if item.image_url is None]
+    if not missing:
+        return
+    try:
+        async with httpx.AsyncClient() as client:
+            scraped = await asyncio.gather(
+                *(_fetch_og_image(client, redis, items[i].link) for i in missing),
+                return_exceptions=True,
+            )
+        new_items = list(items)
+        for idx, result in zip(missing, scraped):
+            img = result if isinstance(result, str) else None
+            new_items[idx] = items[idx].model_copy(update={"image_url": img})
+        await redis.set(
+            _CACHE_KEY,
+            json.dumps([item.model_dump() for item in new_items]),
+            ex=settings.NEWS_CACHE_TTL,
         )
-    enriched: list[NewsItem] = []
-    for item, img in zip(items, images):
-        enriched.append(item.model_copy(update={"image_url": img}))
-    return enriched
+    except Exception:
+        logger.exception("news og:image background enrichment failed")
 
 
 async def get_news_list(redis: aioredis.Redis) -> NewsListResponse:
@@ -303,8 +354,11 @@ async def get_news_list(redis: aioredis.Redis) -> NewsListResponse:
             detail="뉴스 데이터를 가져오는 데 실패했습니다.",
         ) from exc
 
-    # og:image 보강 — 실패해도 항목은 유지
-    news_items = await _enrich_images(news_items, redis)
+    # 응답 경로에서는 per-link og:image 캐시만 채운다. 캐시 미스 분 (보통 첫 노출 시
+    # 20건 모두) 은 image_url=None 으로 둔 채 즉시 응답하고, 백그라운드 task 가
+    # 스크래핑 후 news:list 캐시를 다시 굽는다. 이전 동작은 응답 경로에서 최대
+    # 20×4s 의 외부 HTTP 호출을 직렬화시켜 콜드 미스 응답을 7초까지 끌었다.
+    news_items = await _fill_images_from_cache(news_items, redis)
 
     try:
         await redis.set(
@@ -313,9 +367,10 @@ async def get_news_list(redis: aioredis.Redis) -> NewsListResponse:
             ex=settings.NEWS_CACHE_TTL,
         )
     except Exception as exc:
-        # 캐시 SET 실패하면 다음 요청도 다시 Naver API 7개 호출 + og:image 스크래핑이 돌게 되므로
-        # 조용히 묻기보다 경고를 남겨 운영에서 원인을 파악할 수 있게 한다.
         logger.warning("news cache set failed: %s", exc)
+
+    # fire-and-forget: 응답 차단 금지. 다음 캐시 만료까지 점진적으로 og:image 가 채워진다.
+    asyncio.create_task(_enrich_and_recache(news_items, redis))
 
     return NewsListResponse(news=news_items)
 
