@@ -7,6 +7,10 @@ Create Date: 2026-05-17 13:00:00.000000
 기존 users.nickname 은 글로벌 UNIQUE 제약이라 soft-delete 된 사용자의 닉네임이
 영구 점유되는 문제가 있었다. 활성 사용자(`deleted_at IS NULL`) 끼리만 UNIQUE
 이도록 partial index 로 교체한다.
+
+NOTE: downgrade 는 데이터 의존적이다. 한 번 partial unique 가 적용된 뒤
+soft-deleted 와 활성 사용자가 같은 닉네임을 공유하기 시작하면 글로벌 UNIQUE
+재추가가 실패한다. 그런 경우 다운그레이드 전에 닉네임 충돌을 수동 정리해야 한다.
 """
 from typing import Sequence, Union
 
