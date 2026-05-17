@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # DB 커넥션 풀 — 운영에서는 동시 요청 대비 넉넉히. asyncpg는 한 connection 당 한 쿼리.
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
-    DB_POOL_RECYCLE_SECONDS: int = 1800  # 30분마다 connection 재활용
+    DB_POOL_RECYCLE_SECONDS: int = 300  # 5분마다 connection 재활용 — Railway 의 idle TCP 차단 회피
 
     # Redis도 DB와 동일하게 private 도메인을 우선 사용. 환경에 따라 정의되지 않을 수 있어 옵션.
     REDIS_PRIVATE_URL_RAW: str | None = Field(default=None, alias="REDIS_PRIVATE_URL")

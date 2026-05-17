@@ -11,7 +11,8 @@ async def create(db: AsyncSession, user_id: int, data: PetCreate) -> Pet:
     pet = Pet(user_id=user_id, **data.model_dump())
     db.add(pet)
     await db.commit()
-    await db.refresh(pet)
+    # Pet 모델의 __mapper_args__["eager_defaults"]=True 로 INSERT … RETURNING 이
+    # server_default 컬럼을 미리 채워주므로 별도 refresh 불필요.
     return pet
 
 

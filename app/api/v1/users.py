@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.deps import get_current_user, get_current_volunteer
 from app.crud import volunteer_request as crud_vr
@@ -37,10 +35,10 @@ async def get_me(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(User).options(selectinload(User.pets)).where(User.id == current_user.id)
-    )
-    return result.scalar_one()
+    # get_current_user 가 이미 user row 를 로드해뒀으므로 pets 만 lazy attribute 로 채우면 된다.
+    # 기존엔 SELECT user 를 한 번 더 호출하느라 DB hop 1개가 낭비됐다.
+    await db.refresh(current_user, attribute_names=["pets"])
+    return current_user
 
 
 @router.patch("/me", response_model=UserResponse)

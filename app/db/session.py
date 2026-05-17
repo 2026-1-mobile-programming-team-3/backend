@@ -10,13 +10,16 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# pool_pre_ping=False: 매 체크아웃 시의 SELECT 1 라운드트립 제거.
-# pool_recycle: 일정 시간이 지난 connection은 폐기 → 끊긴 idle connection을 자연스럽게 갱신.
-# pool_size + max_overflow: 동시 요청 대비 풀 여유. 기본(5+10)은 idle 요청 큐잉을 유발.
+# pool_pre_ping=True: Railway 가 idle TCP 를 끊으면 풀의 stale connection 이 실제 쿼리에서
+#                     1~2초씩 행 거는 사례를 막는다. 체크아웃마다 SELECT 1 한 번이 internal
+#                     네트워크에서는 한 자릿수 ms 라 트레이드오프가 명확하게 유리.
+# pool_recycle:       idle 이 길어진 connection 을 자연 폐기. Railway 가 ~몇 분 후 끊는
+#                     경향이 있어 settings 기본을 짧게 (5분).
+# pool_size + max_overflow: 동시 요청 대비 풀 여유.
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.APP_ENV == "development",
-    pool_pre_ping=False,
+    pool_pre_ping=True,
     pool_recycle=settings.DB_POOL_RECYCLE_SECONDS,
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,

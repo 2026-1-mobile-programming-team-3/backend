@@ -94,6 +94,10 @@ class RefreshToken(Base):
 
 class Pet(Base):
     __tablename__ = "pets"
+    # eager_defaults=True: INSERT 시 server_default 컬럼(created_at, updated_at, is_neutered, gender)
+    # 을 RETURNING 으로 한 번에 받아온다. crud.pet.create 에서 db.refresh() 가 하던 SELECT
+    # 라운드트립 1개를 절약.
+    __mapper_args__ = {"eager_defaults": True}
 
     id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(
