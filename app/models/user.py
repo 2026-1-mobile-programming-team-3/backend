@@ -15,7 +15,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
     email: Mapped[str] = mapped_column(sa.String(255), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(sa.String(255), nullable=False)
-    nickname: Mapped[str] = mapped_column(sa.String(20), nullable=False, unique=True)
+    # 닉네임 UNIQUE 는 partial index (uq_users_nickname_active) 로 분리:
+    # soft-deleted 사용자의 닉네임이 영구 점유되지 않도록 활성 사용자끼리만 UNIQUE.
+    nickname: Mapped[str] = mapped_column(sa.String(20), nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(sa.String(20))
     role: Mapped[UserRole] = mapped_column(
         sa.Enum(UserRole, name="user_role"),
@@ -39,6 +41,12 @@ class User(Base):
 
     __table_args__ = (
         sa.Index("idx_users_role_active", "role", postgresql_where=sa.text("deleted_at IS NULL")),
+        sa.Index(
+            "uq_users_nickname_active",
+            "nickname",
+            unique=True,
+            postgresql_where=sa.text("deleted_at IS NULL"),
+        ),
     )
 
 

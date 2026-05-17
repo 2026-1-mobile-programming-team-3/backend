@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -31,21 +32,33 @@ def _refresh_expires_at() -> datetime:
 
 
 async def signup(db: AsyncSession, data: SignupRequest) -> User:
-    existing = await crud_user.get_by_email(db, data.email)
-    if existing:
+    if await crud_user.get_by_email(db, data.email):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="이미 사용 중인 이메일입니다.",
         )
-    return await crud_user.create(
-        db,
-        email=data.email,
-        password_hash=await hash_password_async(data.password),
-        nickname=data.nickname,
-        phone=data.phone,
-        region_si=data.region_si,
-        region_dong=data.region_dong,
-    )
+    if await crud_user.get_by_nickname(db, data.nickname):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 사용 중인 닉네임입니다.",
+        )
+    try:
+        return await crud_user.create(
+            db,
+            email=data.email,
+            password_hash=await hash_password_async(data.password),
+            nickname=data.nickname,
+            phone=data.phone,
+            region_si=data.region_si,
+            region_dong=data.region_dong,
+        )
+    except IntegrityError:
+        # 사전 검사와 INSERT 사이의 레이스, 또는 soft-deleted 사용자의 글로벌 email unique 충돌.
+        # 닉네임은 partial unique index 라 활성 사용자끼리만 충돌하므로 여기 도달하면 거의 race.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 사용 중인 이메일 또는 닉네임입니다.",
+        )
 
 
 async def login(db: AsyncSession, email: str, password: str) -> LoginResponse:
@@ -128,7 +141,20 @@ async def update_profile(db: AsyncSession, user: User, data: UserUpdateRequest) 
     fields = {k: v for k, v in raw.items() if v is not None or k in clearable}
     if not fields:
         return user
-    return await crud_user.update(db, user, **fields)
+    new_nickname = fields.get("nickname")
+    if new_nickname is not None and new_nickname != user.nickname:
+        if await crud_user.get_by_nickname(db, new_nickname):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="이미 사용 중인 닉네임입니다.",
+            )
+    try:
+        return await crud_user.update(db, user, **fields)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 사용 중인 닉네임입니다.",
+        )
 
 
 async def change_password(db: AsyncSession, user: User, data: PasswordChangeRequest) -> None:

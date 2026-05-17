@@ -18,6 +18,13 @@ async def get_by_email(db: AsyncSession, email: str) -> User | None:
     return result.scalar_one_or_none()
 
 
+async def get_by_nickname(db: AsyncSession, nickname: str) -> User | None:
+    result = await db.execute(
+        select(User).where(User.nickname == nickname, User.deleted_at.is_(None))
+    )
+    return result.scalar_one_or_none()
+
+
 async def create(
     db: AsyncSession,
     *,
