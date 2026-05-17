@@ -9,6 +9,7 @@ from app.core.security import (
     generate_refresh_token,
     hash_password_async,
     hash_refresh_token,
+    password_needs_rehash,
     verify_dummy_password_async,
     verify_password_async,
 )
@@ -61,6 +62,11 @@ async def login(db: AsyncSession, email: str, password: str) -> LoginResponse:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="이메일 또는 비밀번호가 올바르지 않습니다.",
         )
+
+    # passlib 의 deprecation 정책상 더 가벼운 cost factor 가 기본이 되었으면 점진적 재해시.
+    # verify 가 이미 성공한 평문이 있는 이 시점에서만 안전하게 갱신할 수 있다.
+    if password_needs_rehash(user.password_hash):
+        user.password_hash = await hash_password_async(password)
 
     access_token = create_access_token(user.id)
     raw_rt = generate_refresh_token()

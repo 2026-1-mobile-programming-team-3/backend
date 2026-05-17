@@ -10,13 +10,31 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt rounds=10 = OWASP 최소 권장치. 기존 12라운드 해시는 deprecated="auto" 와 함께
+# pwd_context.needs_update() 가 True 를 돌려주므로 로그인 성공 시 점진적으로 재해시된다.
+_pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    bcrypt__default_rounds=10,
+    bcrypt__min_rounds=10,
+    deprecated="auto",
+)
 
 # bcrypt는 비밀번호 길이가 길수록 비용이 폭증하므로 상한을 둔다.
 MAX_PASSWORD_LENGTH = 128
 
-# login 실패 분기에서 타이밍 누설을 막기 위한 더미 해시 (모듈 로드 시 1회 계산).
-_DUMMY_PASSWORD_HASH = _pwd_context.hash("__dummy_password_for_timing_safety__")
+# 더미 해시는 첫 사용 시점에 lazy 계산 — 모듈 import 시 bcrypt 실행되면 콜드 스타트가 길어진다.
+_DUMMY_PASSWORD_HASH: str | None = None
+
+
+def _get_dummy_hash() -> str:
+    global _DUMMY_PASSWORD_HASH
+    if _DUMMY_PASSWORD_HASH is None:
+        _DUMMY_PASSWORD_HASH = _pwd_context.hash("__dummy_password_for_timing_safety__")
+    return _DUMMY_PASSWORD_HASH
+
+
+def password_needs_rehash(hashed: str) -> bool:
+    return _pwd_context.needs_update(hashed)
 
 
 def hash_password(plain: str) -> str:
@@ -38,7 +56,7 @@ async def verify_password_async(plain: str, hashed: str) -> bool:
 
 async def verify_dummy_password_async(plain: str) -> bool:
     """존재하지 않는 사용자 분기에서도 verify를 수행해 타이밍 누설을 차단."""
-    return await asyncio.to_thread(verify_password, plain, _DUMMY_PASSWORD_HASH)
+    return await asyncio.to_thread(verify_password, plain, _get_dummy_hash())
 
 
 def create_access_token(user_id: int) -> str:
