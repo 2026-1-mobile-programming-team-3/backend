@@ -84,7 +84,8 @@ https://{host}/api/v1
 - 어긋나면 `400` + 사유 메시지
 
 #### 닉네임 정책
-- 양끝 공백 trim 후 **2~20자**, 그 외 `400`. DB `users.nickname` 은 UNIQUE.
+- 양끝 공백 trim 후 **2~20자**, 그 외 `400`.
+- **활성 사용자(`deleted_at IS NULL`) 끼리만 UNIQUE** (partial index `uq_users_nickname_active`). soft-delete 된 사용자의 닉네임은 재사용 가능. 이미 활성 사용자가 점유 중이면 `409 이미 사용 중인 닉네임입니다.`
 
 #### 연락처(phone) 정책 — 선택 입력
 - `^\+?[0-9\-\s]{9,20}$` 정규식 매칭 필요. 빈 문자열은 `null` 취급.
