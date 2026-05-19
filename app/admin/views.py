@@ -1,4 +1,5 @@
-from geoalchemy2.shape import to_shape
+import struct
+
 from sqladmin import ModelView
 
 from app.models.favorite import StoreFavorite
@@ -125,10 +126,19 @@ class MatchReviewAdmin(ModelView, model=MatchReview):
 
 
 def _format_store_coords(obj: Store, _attr: str) -> str:
-    if obj.location is None:
+    loc = obj.location
+    if loc is None:
         return "-"
-    point = to_shape(obj.location)
-    return f"{point.y:.6f}, {point.x:.6f}"
+    try:
+        data = loc.data if hasattr(loc, "data") else loc
+        if isinstance(data, str):
+            data = bytes.fromhex(data)
+        endian = "<" if data[0] == 1 else ">"
+        # EWKB Point with SRID: [order:1][type:4][srid:4][x:8][y:8]
+        lng, lat = struct.unpack(f"{endian}dd", data[9:25])
+        return f"{lat:.6f}, {lng:.6f}"
+    except Exception:
+        return "-"
 
 
 class StoreAdmin(ModelView, model=Store):
