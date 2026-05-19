@@ -24,11 +24,17 @@ from app.schemas.auth import (
     TokenRefreshRequest,
     TokenRefreshResponse,
 )
-from app.schemas.user import AccountDeleteRequest, PasswordChangeRequest, UserUpdateRequest
+from app.schemas.user import (
+    AccountDeleteRequest,
+    PasswordChangeRequest,
+    UserUpdateRequest,
+)
 
 
 def _refresh_expires_at() -> datetime:
-    return datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+    return datetime.now(timezone.utc) + timedelta(
+        days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+    )
 
 
 async def signup(db: AsyncSession, data: SignupRequest) -> User:
@@ -98,7 +104,9 @@ async def login(db: AsyncSession, email: str, password: str) -> LoginResponse:
 
 
 async def refresh(db: AsyncSession, data: TokenRefreshRequest) -> TokenRefreshResponse:
-    token_record = await crud_rt.get_active_by_hash(db, hash_refresh_token(data.refresh_token))
+    token_record = await crud_rt.get_active_by_hash(
+        db, hash_refresh_token(data.refresh_token)
+    )
     if token_record is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -123,7 +131,9 @@ async def refresh(db: AsyncSession, data: TokenRefreshRequest) -> TokenRefreshRe
 
 
 async def logout(db: AsyncSession, data: LogoutRequest) -> None:
-    token_record = await crud_rt.get_active_by_hash(db, hash_refresh_token(data.refresh_token))
+    token_record = await crud_rt.get_active_by_hash(
+        db, hash_refresh_token(data.refresh_token)
+    )
     if token_record is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -157,18 +167,24 @@ async def update_profile(db: AsyncSession, user: User, data: UserUpdateRequest) 
         )
 
 
-async def change_password(db: AsyncSession, user: User, data: PasswordChangeRequest) -> None:
+async def change_password(
+    db: AsyncSession, user: User, data: PasswordChangeRequest
+) -> None:
     if not await verify_password_async(data.current_password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="현재 비밀번호가 올바르지 않습니다.",
         )
-    await crud_user.update(db, user, password_hash=await hash_password_async(data.new_password))
+    await crud_user.update(
+        db, user, password_hash=await hash_password_async(data.new_password)
+    )
     # 비밀번호 변경 시 모든 활성 세션 강제 로그아웃 — 비밀번호가 노출됐을 가능성을 차단.
     await crud_rt.revoke_all_for_user(db, user.id)
 
 
-async def delete_account(db: AsyncSession, user: User, data: AccountDeleteRequest) -> None:
+async def delete_account(
+    db: AsyncSession, user: User, data: AccountDeleteRequest
+) -> None:
     if not await verify_password_async(data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

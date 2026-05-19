@@ -1,3 +1,4 @@
+from geoalchemy2.shape import to_shape
 from sqladmin import ModelView
 
 from app.models.favorite import StoreFavorite
@@ -123,11 +124,47 @@ class MatchReviewAdmin(ModelView, model=MatchReview):
     form_excluded_columns = ["proof_image_urls", "match", "created_at"]
 
 
+def _format_store_coords(obj: Store, _attr: str) -> str:
+    if obj.location is None:
+        return "-"
+    point = to_shape(obj.location)
+    return f"{point.y:.6f}, {point.x:.6f}"
+
+
 class StoreAdmin(ModelView, model=Store):
     name = "매장"
     name_plural = "매장 목록"
     icon = "fa-solid fa-store"
-    column_list = [Store.id, Store.name, Store.category, Store.status, Store.rating_avg, Store.created_at]
+    column_list = [
+        Store.id,
+        Store.name,
+        Store.category,
+        Store.status,
+        "coords",
+        Store.rating_avg,
+        Store.created_at,
+    ]
+    column_details_list = [
+        Store.id,
+        Store.name,
+        Store.address,
+        Store.phone,
+        Store.category,
+        Store.status,
+        "coords",
+        Store.operating_hours,
+        Store.is_pet_allowed,
+        Store.photo_urls,
+        Store.rating_avg,
+        Store.rating_count,
+        Store.created_by,
+        Store.created_at,
+        Store.updated_at,
+        Store.deleted_at,
+    ]
+    column_labels = {"coords": "좌표 (lat, lng)"}
+    column_formatters = {"coords": _format_store_coords}
+    column_formatters_detail = {"coords": _format_store_coords}
     column_searchable_list = [Store.name, Store.address]
     column_sortable_list = [Store.id, Store.rating_avg, Store.created_at]
     # location is PostGIS Geography; photo_urls is ARRAY — both excluded from form
