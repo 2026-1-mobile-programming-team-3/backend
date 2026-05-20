@@ -16,6 +16,7 @@ class PetSummary(BaseModel):
     age: int | None
     gender: PetGender
     is_neutered: bool
+    note: str | None
 
 
 class UserMeResponse(BaseModel):

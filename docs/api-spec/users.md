@@ -31,7 +31,8 @@
       "breed": "말티즈",
       "age": 3,
       "gender": "MALE",
-      "is_neutered": false
+      "is_neutered": false,
+      "note": "닭고기 알레르기 있음."
     }
   ],
   "created_at": "2026-04-15T12:00:00Z"

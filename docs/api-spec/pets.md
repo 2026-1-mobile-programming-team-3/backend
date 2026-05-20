@@ -22,6 +22,7 @@
 | is_neutered | boolean | Y | 중성화 여부 |
 | gender | string | N | `MALE` / `FEMALE` / `UNKNOWN` (기본 `UNKNOWN`) |
 | photo_url | string | N | 사진 URL |
+| note | string | N | 특이사항 (알레르기·복용 약·성격 등 자유 메모, 최대 500자) |
 
 **Response — 201 Created** (`PetResponse`)
 ```json
@@ -35,6 +36,7 @@
   "is_neutered": false,
   "gender": "MALE",
   "photo_url": "https://storage.example.com/pets/choco.jpg",
+  "note": "닭고기 알레르기 있음. 산책 시 줄 강하게 당기는 편.",
   "created_at": "2026-04-15T12:00:00Z",
   "updated_at": "2026-04-15T12:00:00Z"
 }
@@ -59,6 +61,7 @@
 | is_neutered | boolean | |
 | gender | string | `MALE` / `FEMALE` / `UNKNOWN` |
 | photo_url | string | |
+| note | string | 특이사항 (최대 500자, `null` 로 비울 수 있음) |
 
 > `species`는 등록 시 결정되며 수정 불가.
 
@@ -85,5 +88,6 @@
 | `PetSpecies` | `DOG`, `CAT`, `OTHER` |
 | `PetGender` | `MALE`, `FEMALE`, `UNKNOWN` |
 
-- DB 모델: `app/models/user.py:Pet` — `weight_kg`는 `NUMERIC(5,2)`, `age`는 `SMALLINT`.
+- DB 모델: `app/models/user.py:Pet` — `weight_kg`는 `NUMERIC(5,2)`, `age`는 `SMALLINT`, `note`는 `VARCHAR(500)`.
 - CHECK 제약: `age IS NULL OR age >= 0`, `weight_kg IS NULL OR weight_kg > 0`.
+- `note` 는 공백만 입력 시 서버에서 `null` 로 정규화. 길이 검증은 Pydantic(`PetCreate`/`PetUpdate`) 단계에서 수행.

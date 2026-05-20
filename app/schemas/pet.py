@@ -16,6 +16,7 @@ class PetCreate(BaseModel):
     is_neutered: bool
     gender: PetGender = PetGender.UNKNOWN
     photo_url: Optional[str] = None
+    note: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -39,9 +40,21 @@ class PetCreate(BaseModel):
             raise ValueError("체중은 0보다 커야 합니다.")
         return v
 
+    @field_validator("note")
+    @classmethod
+    def validate_note(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            return None
+        if len(v) > 500:
+            raise ValueError("특이사항은 500자 이내로 입력해주세요.")
+        return v
+
 
 class PetUpdate(BaseModel):
-    # 마이페이지에서 이름·품종·나이·성별·중성화 여부·체중·사진을 모두 편집할 수 있어야 한다.
+    # 마이페이지에서 이름·품종·나이·성별·중성화 여부·체중·사진·특이사항을 모두 편집할 수 있어야 한다.
     name: Optional[str] = None
     breed: Optional[str] = None
     age: Optional[int] = None
@@ -49,6 +62,7 @@ class PetUpdate(BaseModel):
     is_neutered: Optional[bool] = None
     gender: Optional[PetGender] = None
     photo_url: Optional[str] = None
+    note: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -74,6 +88,18 @@ class PetUpdate(BaseModel):
             raise ValueError("체중은 0보다 커야 합니다.")
         return v
 
+    @field_validator("note")
+    @classmethod
+    def validate_note(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            return None
+        if len(v) > 500:
+            raise ValueError("특이사항은 500자 이내로 입력해주세요.")
+        return v
+
 
 class PetResponse(BaseModel):
     model_config = {"from_attributes": True}
@@ -87,5 +113,6 @@ class PetResponse(BaseModel):
     is_neutered: bool
     gender: PetGender
     photo_url: Optional[str]
+    note: Optional[str]
     created_at: datetime
     updated_at: datetime

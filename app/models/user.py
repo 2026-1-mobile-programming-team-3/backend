@@ -128,6 +128,7 @@ class Pet(Base):
         server_default=sa.text("'UNKNOWN'"),
     )
     photo_url: Mapped[Optional[str]] = mapped_column(sa.Text)
+    note: Mapped[Optional[str]] = mapped_column(sa.String(500))
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
     )

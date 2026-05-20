@@ -45,7 +45,7 @@ class PetAdmin(ModelView, model=Pet):
     name = "반려동물"
     name_plural = "반려동물 목록"
     icon = "fa-solid fa-paw"
-    column_list = [Pet.id, Pet.user_id, Pet.name, Pet.species, Pet.breed, Pet.gender, Pet.is_neutered, Pet.weight_kg, Pet.created_at]
+    column_list = [Pet.id, Pet.user_id, Pet.name, Pet.species, Pet.breed, Pet.gender, Pet.is_neutered, Pet.weight_kg, Pet.note, Pet.created_at]
     column_sortable_list = [Pet.id, Pet.created_at]
     form_excluded_columns = ["user", "created_at", "updated_at"]
 
