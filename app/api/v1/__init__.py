@@ -14,6 +14,7 @@ from app.api.v1 import (
     notifications,
     pets,
     reports,
+    store_requests,
     users,
 )
 
@@ -23,6 +24,7 @@ api_router.include_router(users.router)
 api_router.include_router(pets.router)
 api_router.include_router(news.router)
 api_router.include_router(maps.router)
+api_router.include_router(store_requests.router)
 api_router.include_router(matches.router)
 api_router.include_router(notifications.router)
 api_router.include_router(reports.router)

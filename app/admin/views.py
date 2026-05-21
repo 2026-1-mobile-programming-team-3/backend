@@ -7,7 +7,8 @@ from app.models.match import ChatMessage, ChatRoom, Match, MatchApplication, Mat
 from app.models.news import CalendarEvent
 from app.models.notification import Notification, NotificationSetting
 from app.models.report import Report
-from app.models.store import Store, StoreReview
+from app.models.store import Store, StorePricingPlan, StoreReview
+from app.models.store_request import StoreRequest
 from app.models.user import Device, Pet, RefreshToken, User
 from app.models.volunteer import VolunteerRequest
 
@@ -198,6 +199,62 @@ class VolunteerRequestAdmin(ModelView, model=VolunteerRequest):
     column_list = [VolunteerRequest.id, VolunteerRequest.user_id, VolunteerRequest.status, VolunteerRequest.processed_at, VolunteerRequest.created_at]
     column_sortable_list = [VolunteerRequest.id, VolunteerRequest.created_at]
     form_excluded_columns = ["created_at"]
+
+
+class StoreRequestAdmin(ModelView, model=StoreRequest):
+    name = "매장 요청"
+    name_plural = "매장 요청 목록"
+    icon = "fa-solid fa-file-pen"
+    column_list = [
+        StoreRequest.id,
+        StoreRequest.user_id,
+        StoreRequest.type,
+        StoreRequest.target_store_id,
+        StoreRequest.status,
+        StoreRequest.reviewer_id,
+        StoreRequest.processed_at,
+        StoreRequest.created_at,
+    ]
+    column_details_list = [
+        StoreRequest.id,
+        StoreRequest.user_id,
+        StoreRequest.type,
+        StoreRequest.target_store_id,
+        StoreRequest.payload,
+        StoreRequest.proof_urls,
+        StoreRequest.message,
+        StoreRequest.status,
+        StoreRequest.reviewer_id,
+        StoreRequest.review_note,
+        StoreRequest.processed_at,
+        StoreRequest.created_at,
+    ]
+    column_sortable_list = [StoreRequest.id, StoreRequest.created_at]
+    # PATCH /admin/store-requests/{id} 경유로 처리해야 stores 반영 트랜잭션이 같이 돈다.
+    # SQLAdmin에서 status 직접 변경은 stores 테이블 반영이 안 되므로 form 차단.
+    can_create = False
+    can_edit = False
+    form_excluded_columns = ["payload", "proof_urls", "created_at"]
+
+
+class StorePricingPlanAdmin(ModelView, model=StorePricingPlan):
+    name = "펫호텔 가격 플랜"
+    name_plural = "펫호텔 가격 플랜 목록"
+    icon = "fa-solid fa-tag"
+    column_list = [
+        StorePricingPlan.id,
+        StorePricingPlan.store_id,
+        StorePricingPlan.plan_name,
+        StorePricingPlan.price_krw,
+        StorePricingPlan.display_order,
+        StorePricingPlan.updated_at,
+    ]
+    column_sortable_list = [
+        StorePricingPlan.id,
+        StorePricingPlan.store_id,
+        StorePricingPlan.price_krw,
+    ]
+    form_excluded_columns = ["store", "created_at", "updated_at"]
 
 
 class ReportAdmin(ModelView, model=Report):

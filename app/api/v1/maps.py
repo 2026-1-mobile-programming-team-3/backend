@@ -1,14 +1,14 @@
-from fastapi import APIRouter, Depends, Query, status
+import math
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, get_current_volunteer, get_db
 from app.models.enums import StoreCategory
 from app.models.user import User
-from app.schemas.auth import MessageResponse
 from app.schemas.match import VolunteerLocationListResponse
 from app.schemas.store import (
-    StoreCreateRequest,
-    StoreCreateResponse,
+    PetHotelListResponse,
     StoreDetail,
     StoreFilterResponse,
     StoreNearbyResponse,
@@ -16,7 +16,8 @@ from app.schemas.store import (
     StoreReviewCreatedResponse,
     StoreReviewListResponse,
     StoreSearchResponse,
-    StoreUpdateRequest,
+    StoreViewportQuery,
+    StoreViewportResponse,
 )
 from app.services import match as match_service
 from app.services import store as store_service
@@ -43,6 +44,31 @@ async def filter_stores(
     return await store_service.filter_stores(db, category, is_pet_allowed)
 
 
+@router.get("/stores/viewport", response_model=StoreViewportResponse)
+async def stores_in_viewport(
+    sw_lat: float = Query(..., ge=-90, le=90, description="bbox 남서 위도"),
+    sw_lng: float = Query(..., ge=-180, le=180, description="bbox 남서 경도"),
+    ne_lat: float = Query(..., ge=-90, le=90, description="bbox 북동 위도"),
+    ne_lng: float = Query(..., ge=-180, le=180, description="bbox 북동 경도"),
+    category: StoreCategory | None = Query(None, description="카테고리 필터 (옵션)"),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        q = StoreViewportQuery(
+            sw_lat=sw_lat, sw_lng=sw_lng, ne_lat=ne_lat, ne_lng=ne_lng
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return await store_service.viewport_stores(
+        db,
+        sw_lat=q.sw_lat,
+        sw_lng=q.sw_lng,
+        ne_lat=q.ne_lat,
+        ne_lng=q.ne_lng,
+        category=category,
+    )
+
+
 @router.get("/stores", response_model=StoreNearbyResponse)
 async def nearby_stores(
     lat: float = Query(..., ge=-90, le=90, description="위도"),
@@ -53,19 +79,31 @@ async def nearby_stores(
     return await store_service.nearby_stores(db, lat, lng, radius)
 
 
-@router.post(
-    "/stores",
-    response_model=StoreCreateResponse,
-    status_code=status.HTTP_201_CREATED,
+_GONE_DETAIL = (
+    "이 엔드포인트는 폐기되었습니다. POST /maps/store-requests 로 추가/수정 요청을 제출하세요."
 )
-async def create_store(
-    data: StoreCreateRequest,
+
+
+@router.post("/stores", deprecated=True, include_in_schema=True)
+async def create_store_gone():
+    raise HTTPException(status_code=status.HTTP_410_GONE, detail=_GONE_DETAIL)
+
+
+@router.get("/pet-hotels", response_model=PetHotelListResponse)
+async def list_pet_hotels(
+    lat: float = Query(..., ge=-90, le=90, description="기준 위도"),
+    lng: float = Query(..., ge=-180, le=180, description="기준 경도"),
+    radius: int = Query(
+        5000, ge=1, le=50_000, description="검색 반경 (m), 최대 50km"
+    ),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    return await store_service.create_store(
-        db, current_user_id=current_user.id, data=data
-    )
+    if not (math.isfinite(lat) and math.isfinite(lng)):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="lat/lng는 유한한 수여야 합니다.",
+        )
+    return await store_service.list_pet_hotels(db, lat, lng, radius)
 
 
 @router.get("/volunteers", response_model=VolunteerLocationListResponse)
@@ -84,27 +122,14 @@ async def get_store(
     return await store_service.get_store_detail(db, store_id)
 
 
-@router.put("/stores/{store_id}", response_model=MessageResponse)
-async def update_store(
-    store_id: int,
-    data: StoreUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return await store_service.update_store(
-        db, current_user=current_user, store_id=store_id, data=data
-    )
+@router.put("/stores/{store_id}", deprecated=True, include_in_schema=True)
+async def update_store_gone(store_id: int):
+    raise HTTPException(status_code=status.HTTP_410_GONE, detail=_GONE_DETAIL)
 
 
-@router.delete("/stores/{store_id}", response_model=MessageResponse)
-async def delete_store(
-    store_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return await store_service.delete_store(
-        db, current_user=current_user, store_id=store_id
-    )
+@router.delete("/stores/{store_id}", deprecated=True, include_in_schema=True)
+async def delete_store_gone(store_id: int):
+    raise HTTPException(status_code=status.HTTP_410_GONE, detail=_GONE_DETAIL)
 
 
 @router.get("/stores/{store_id}/reviews", response_model=StoreReviewListResponse)

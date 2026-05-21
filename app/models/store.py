@@ -39,6 +39,9 @@ class Store(Base):
     created_by: Mapped[Optional[int]] = mapped_column(
         sa.BigInteger, sa.ForeignKey("users.id", ondelete="SET NULL")
     )
+    owner_user_id: Mapped[Optional[int]] = mapped_column(
+        sa.BigInteger, sa.ForeignKey("users.id", ondelete="SET NULL")
+    )
     rating_avg: Mapped[Decimal] = mapped_column(
         sa.Numeric(3, 2), nullable=False, default=0, server_default=sa.text("0")
     )
@@ -55,6 +58,11 @@ class Store(Base):
 
     reviews: Mapped[list["StoreReview"]] = relationship(
         back_populates="store", cascade="all, delete-orphan"
+    )
+    pricing_plans: Mapped[list["StorePricingPlan"]] = relationship(
+        back_populates="store",
+        cascade="all, delete-orphan",
+        order_by="StorePricingPlan.display_order",
     )
 
     __table_args__ = (
@@ -94,4 +102,37 @@ class StoreReview(Base):
         sa.UniqueConstraint("store_id", "author_id"),
         sa.CheckConstraint("rating BETWEEN 1 AND 5", name="ck_store_reviews_rating"),
         sa.Index("idx_store_reviews_store_created", "store_id", sa.text("created_at DESC")),
+    )
+
+
+class StorePricingPlan(Base):
+    """PET_HOTEL 매장의 가격 플랜. 1매장 N플랜.
+    카테고리 != PET_HOTEL 인 매장에 plan 추가는 서비스 레이어에서 차단."""
+
+    __tablename__ = "store_pricing_plans"
+
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True)
+    store_id: Mapped[int] = mapped_column(
+        sa.BigInteger,
+        sa.ForeignKey("stores.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    plan_name: Mapped[str] = mapped_column(sa.String(100), nullable=False)
+    price_krw: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    display_order: Mapped[int] = mapped_column(
+        sa.SmallInteger, nullable=False, default=0, server_default=sa.text("0")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.text("NOW()")
+    )
+
+    store: Mapped["Store"] = relationship(back_populates="pricing_plans")
+
+    __table_args__ = (
+        sa.CheckConstraint("price_krw >= 0", name="ck_store_pricing_plans_price_nonneg"),
+        sa.UniqueConstraint("store_id", "plan_name", name="uq_store_pricing_plans_name"),
+        sa.Index("idx_store_pricing_plans_store_order", "store_id", "display_order"),
     )

@@ -865,7 +865,7 @@
         const stores = (data.stores || []).map(s => ({
           ...s,
           distance_label: s.distance_m != null ? (s.distance_m < 1000 ? `${Math.round(s.distance_m)}m` : `${(s.distance_m/1000).toFixed(1)}km`) : '—',
-          category_label: ({CAFE:'카페',PARK:'공원',VET:'병원',RESTAURANT:'식당',GROOMING:'미용'}[s.category] || s.category),
+          category_label: ({CAFE:'카페',PARK:'공원',RESTAURANT:'식당',PET_HOTEL:'펫호텔'}[s.category] || s.category),
         }));
         Bind.apply(document, { stores });
         attachStoreHrefs();
@@ -882,7 +882,7 @@
         const stores = (data.results || []).map(r => ({
           ...r,
           distance_label: '—',
-          category_label: ({CAFE:'카페',PARK:'공원',VET:'병원',RESTAURANT:'식당',GROOMING:'미용'}[r.category] || r.category),
+          category_label: ({CAFE:'카페',PARK:'공원',RESTAURANT:'식당',PET_HOTEL:'펫호텔'}[r.category] || r.category),
         }));
         Bind.apply(document, { stores });
         attachStoreHrefs();
@@ -1792,8 +1792,36 @@
         ...detail,
         avg_rating: detail.rating_avg != null ? detail.rating_avg.toFixed(1) : '—',
         review_count: reviewItems.length,
-        category_label: ({CAFE:'카페',PARK:'공원',VET:'병원',RESTAURANT:'식당',GROOMING:'미용'}[detail.category] || detail.category || ''),
+        category_label: ({CAFE:'카페',PARK:'공원',RESTAURANT:'식당',PET_HOTEL:'펫호텔'}[detail.category] || detail.category || ''),
       });
+
+      // 가격 플랜 (PET_HOTEL 이고 plans 가 있을 때만 노출)
+      const pricingSection = document.getElementById('pricing-section');
+      const pricingTable = document.getElementById('pricing-table');
+      if (pricingSection && pricingTable) {
+        const plans = Array.isArray(detail.plans) ? detail.plans : [];
+        if (detail.category === 'PET_HOTEL' && plans.length > 0) {
+          const tbody = pricingTable.querySelector('tbody');
+          if (tbody) {
+            tbody.innerHTML = '';
+            const sorted = plans.slice().sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+            sorted.forEach((p) => {
+              const tr = document.createElement('tr');
+              const nameTd = document.createElement('td');
+              nameTd.textContent = p.plan_name ?? '';
+              const priceTd = document.createElement('td');
+              priceTd.className = 'price';
+              const price = Number(p.price_krw);
+              priceTd.textContent = Number.isFinite(price) ? `${price.toLocaleString()}원` : '—';
+              tr.appendChild(nameTd); tr.appendChild(priceTd);
+              tbody.appendChild(tr);
+            });
+          }
+          pricingSection.hidden = false;
+        } else {
+          pricingSection.hidden = true;
+        }
+      }
 
       const favBtn = document.getElementById('btn-favorite');
       if (favBtn) {
@@ -2163,7 +2191,7 @@
         const a = node.querySelector('a');
         if (a) a.href = `store-detail.html?id=${it.store_id}`;
         node.querySelector('.fav-name').textContent = it.name;
-        node.querySelector('.fav-cat').textContent = ({CAFE:'카페',PARK:'공원',VET:'병원',RESTAURANT:'식당',GROOMING:'미용'}[it.category] || it.category || '');
+        node.querySelector('.fav-cat').textContent = ({CAFE:'카페',PARK:'공원',RESTAURANT:'식당',PET_HOTEL:'펫호텔'}[it.category] || it.category || '');
         const ratingEl = node.querySelector('.fav-rating');
         if (ratingEl) ratingEl.textContent = it.rating_avg != null ? it.rating_avg.toFixed(1) : '—';
         const imgEl = node.querySelector('.fav-thumb');
@@ -2526,27 +2554,98 @@
       } catch (err) { Toast.error('GPS 실패'); }
     });
 
+    // 카테고리 변경 → 가격 플랜 영역 토글 (PET_HOTEL 일 때만 노출)
+    const categoryEl = document.getElementById('store-category');
+    const pricingEl = document.getElementById('pricing-plans');
+    const planListEl = document.getElementById('plan-list');
+    const planTmpl = document.getElementById('tmpl-plan-row');
+    const togglePricing = () => {
+      if (!pricingEl) return;
+      const show = categoryEl?.value === 'PET_HOTEL';
+      pricingEl.hidden = !show;
+      // 첫 노출 시 빈 플랜 한 줄 자동 추가
+      if (show && planListEl && planListEl.children.length === 0) addPlanRow();
+    };
+    function addPlanRow(plan) {
+      if (!planTmpl || !planListEl) return;
+      const node = planTmpl.content.cloneNode(true);
+      const row = node.querySelector('.plan-row');
+      if (plan) {
+        row.querySelector('.plan-name').value = plan.plan_name || '';
+        row.querySelector('.plan-price').value = plan.price_krw ?? '';
+      }
+      row.querySelector('.btn-remove-plan').addEventListener('click', () => row.remove());
+      planListEl.appendChild(node);
+    }
+    categoryEl?.addEventListener('change', togglePricing);
+    document.getElementById('btn-add-plan')?.addEventListener('click', () => addPlanRow());
+    togglePricing();
+
     document.getElementById('store-add-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const body = {
+      const category = document.getElementById('store-category').value;
+      const photosRaw = document.getElementById('store-photos')?.value.trim() || '';
+      const proofRaw = document.getElementById('store-proof')?.value.trim() || '';
+      const message = document.getElementById('store-message')?.value.trim() || '';
+      const photo_urls = photosRaw ? photosRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const proof_urls = proofRaw ? proofRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      const payload = {
         name: document.getElementById('store-name').value.trim(),
         address: document.getElementById('store-address').value.trim(),
-        category: document.getElementById('store-category').value,
+        category,
         is_pet_allowed: document.getElementById('store-pet-allowed').checked,
         phone: document.getElementById('store-phone').value.trim() || null,
         operating_hours: document.getElementById('store-hours').value.trim() || null,
         latitude: lat,
         longitude: lng,
-        photo_urls: [],
+        photo_urls,
       };
-      if (!body.name || !body.address) { Toast.error('이름과 주소는 필수입니다'); return; }
+
+      if (category === 'PET_HOTEL') {
+        const plans = [];
+        document.querySelectorAll('#plan-list .plan-row').forEach((row) => {
+          const name = row.querySelector('.plan-name')?.value.trim();
+          const priceRaw = row.querySelector('.plan-price')?.value;
+          const price = priceRaw === '' || priceRaw == null ? NaN : Number(priceRaw);
+          if (name && Number.isFinite(price) && price >= 0) {
+            plans.push({ plan_name: name, price_krw: Math.round(price) });
+          }
+        });
+        payload.plans = plans;
+      }
+
+      if (!payload.name || !payload.address) { Toast.error('이름과 주소는 필수입니다'); return; }
+      if (proof_urls.length === 0) { Toast.error('증빙 자료 URL을 1개 이상 입력해 주세요.'); return; }
+
+      const body = { type: 'ADD', payload, proof_urls };
+      if (message) body.message = message;
+
       const btn = e.submitter || e.target.querySelector('[type=submit]');
       const restoreBtn = Loading.bindButton(btn, '등록 중...');
       try {
-        await API.post('/api/v1/maps/stores', body);
+        await API.post('/api/v1/maps/store-requests', body);
         Toast.ok('등록 요청이 접수되었습니다. 관리자 검토 후 지도에 노출됩니다.');
         setTimeout(() => location.href = 'map.html', 1000);
-      } catch (err) { Toast.error(err.message); restoreBtn(); }
+      } catch (err) {
+        const status = err?.status;
+        if (status === 409) {
+          Toast.error('이미 처리 대기 중인 요청이 있습니다.');
+        } else if (status === 422) {
+          const detail = err?.body?.detail;
+          let msg = '입력값을 다시 확인해 주세요.';
+          if (typeof detail === 'string') msg = detail;
+          else if (Array.isArray(detail) && detail.length) {
+            msg = detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+          }
+          Toast.error(msg);
+        } else if (status === 429) {
+          Toast.error('요청이 너무 잦아요. 1시간 뒤 다시 시도해 주세요.');
+        } else {
+          Toast.error(err.message);
+        }
+        restoreBtn();
+      }
     });
   };
 

@@ -38,6 +38,15 @@
     .btn-primary { margin:16px 24px calc(16px + env(safe-area-inset-bottom,0px));
       padding:16px; border-radius:var(--r-lg); background:var(--accent); color:#fff; border:none;
       font:inherit; font-size:15px; font-weight:900; cursor:pointer; }
+    .plan-row { display:flex; gap:8px; align-items:center; }
+    .plan-row .form-field { flex:1; }
+    .plan-row .plan-price { max-width:130px; }
+    .btn-secondary { padding:10px 14px; border-radius:var(--r-lg); background:var(--card); border:1.5px dashed var(--line);
+      font:inherit; font-size:13px; font-weight:800; color:var(--accent); cursor:pointer; align-self:flex-start;
+      display:inline-flex; align-items:center; gap:4px; }
+    .btn-remove-plan { padding:8px 10px; border-radius:10px; background:var(--card); border:1px solid var(--line);
+      color:var(--raspberry); font-size:13px; font-weight:800; cursor:pointer; }
+    .pricing-hint { font-size:11.5px; font-weight:600; color:var(--ink-mute); margin-top:2px; }
   </style>
 </head>
 <body>
@@ -49,7 +58,8 @@
     </header>
 
     <div class="info-card">
-      등록된 매장은 관리자 검토 후 지도에 노출돼요. 반려동물 동반 가능 여부를 정확히 표시해 주세요.
+      등록된 매장은 관리자 검토 후 지도에 노출돼요. 반려동물 동반 가능 여부를 정확히 표시해 주세요.<br/>
+      본인이 운영하는 매장이라는 증빙 자료(사업자등록증 사진 등) 가 필요해요.
     </div>
 
     <form id="store-add-form">
@@ -70,8 +80,7 @@
           <option value="CAFE">카페</option>
           <option value="RESTAURANT">식당</option>
           <option value="PARK">공원</option>
-          <option value="VET">동물병원</option>
-          <option value="GROOMING">미용실</option>
+          <option value="PET_HOTEL">펫호텔</option>
         </select>
       </div>
       <div class="form-field-group">
@@ -82,11 +91,39 @@
         <label class="form-label" for="store-hours">영업시간</label>
         <input class="form-field" type="text" id="store-hours" maxlength="100" placeholder="예: 10:00 - 22:00" />
       </div>
+      <div class="form-field-group">
+        <label class="form-label" for="store-photos">사진 URL (콤마 구분)</label>
+        <input class="form-field" type="text" id="store-photos" placeholder="https://..., https://..." />
+      </div>
       <div class="checkbox-row">
         <input type="checkbox" id="store-pet-allowed" checked />
         <label for="store-pet-allowed">반려동물 동반 가능</label>
       </div>
+
+      <div class="form-field-group" id="pricing-plans" hidden>
+        <label class="form-label">가격 플랜</label>
+        <div class="pricing-hint">펫호텔의 경우 1박 요금, 종/체급별 요금 등 가격 플랜을 등록해 주세요.</div>
+        <div id="plan-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button type="button" class="btn-secondary" id="btn-add-plan"><i class="ph ph-plus"></i>플랜 추가</button>
+      </div>
+
+      <div class="form-field-group">
+        <label class="form-label" for="store-proof">사업자등록증 등 증빙 자료 URL (콤마 구분) <em>*</em></label>
+        <input class="form-field" type="text" id="store-proof" placeholder="https://..., https://..." required />
+      </div>
+      <div class="form-field-group">
+        <label class="form-label" for="store-message">관리자에게 남기는 메모</label>
+        <textarea class="form-field" id="store-message" maxlength="1000" rows="3" placeholder="검수에 참고할 내용이 있다면 적어주세요. (최대 1000자)"></textarea>
+      </div>
     </form>
+
+    <template id="tmpl-plan-row">
+      <div class="plan-row">
+        <input class="form-field plan-name" type="text" maxlength="100" placeholder="플랜명 (예: 1박 소형견)" />
+        <input class="form-field plan-price" type="number" min="0" step="100" placeholder="가격(원)" />
+        <button type="button" class="btn-remove-plan" aria-label="플랜 삭제"><i class="ph ph-x"></i></button>
+      </div>
+    </template>
 
     <button class="btn-primary" type="submit" form="store-add-form">등록 요청</button>
   </main>

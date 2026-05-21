@@ -111,3 +111,129 @@
 | 403 | 관리자 권한 없음 |
 | 404 | `request_id` 없음 |
 | 409 | 이미 처리된 요청 |
+
+---
+
+## 2. 매장 추가/수정 요청 (`/admin/store-requests`)
+
+사용자가 `POST /maps/store-requests` 로 제출한 매장 추가(`ADD`) / 수정(`UPDATE`) 요청을 관리자가 검수·승인하는 라우트. 사용자 측 API 는 `map.md §5.13` 참고.
+
+### 2.1 요청 목록 조회 — `GET /admin/store-requests` [T1]
+
+**인증 필요 (관리자 권한)**
+
+**Query Parameters**
+
+| 필드 | 타입 | 필수 | 기본값 | 설명 |
+| --- | --- | --- | --- | --- |
+| status | string | N | `PENDING` | `PENDING` / `APPROVED` / `REJECTED` |
+| page | integer | N | 1 | |
+| size | integer | N | 20 | 1~100 |
+
+**Response — 200 OK** (`StoreRequestAdminListResponse`)
+```json
+{
+  "items": [
+    {
+      "request_id": 7,
+      "user_id": 21,
+      "nickname": "배곧호텔주인",
+      "type": "ADD",
+      "target_store_id": null,
+      "payload": {
+        "name": "배곧 펫호텔",
+        "address": "경기도 시흥시 배곧동 ...",
+        "category": "PET_HOTEL",
+        "is_pet_allowed": true,
+        "latitude": 37.3752,
+        "longitude": 126.7281,
+        "phone": "031-000-0000",
+        "operating_hours": "00:00-24:00",
+        "photo_urls": ["https://..."] ,
+        "plans": [
+          {"plan_name": "1박 소형견", "price_krw": 40000, "display_order": 0},
+          {"plan_name": "1박 중형견", "price_krw": 55000, "display_order": 1}
+        ]
+      },
+      "proof_urls": ["https://private-bucket/.../biz-license.pdf"],
+      "message": "본인이 운영하는 매장입니다.",
+      "status": "PENDING",
+      "reviewer_id": null,
+      "review_note": null,
+      "processed_at": null,
+      "created_at": "2026-05-21T09:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "size": 20
+}
+```
+
+> `proof_urls` 는 신청자가 외부 비공개 스토리지에 올린 사업자등록증 등 증빙 자료 URL(검토용). 클라이언트가 서명 URL 관리 책임을 가진다.
+> `payload.plans` 는 카테고리가 `PET_HOTEL` 일 때만 의미. 다른 카테고리에서 plans 가 들어 있으면 422로 거부됨 (서비스 레이어).
+
+**Errors**: 401 / 403.
+
+---
+
+### 2.2 요청 상세 조회 — `GET /admin/store-requests/{request_id}` [T1]
+
+**인증 필요 (관리자 권한)** / **Path**: `request_id`
+
+목록 응답의 `items[i]` 와 동일한 단일 객체를 반환 (`StoreRequestAdminItem`). `payload` 와 `proof_urls` 전체를 그대로 노출하므로, 어드민 UI에서 diff 비교 시 `target_store_id` 가 있으면 `/maps/stores/{target_store_id}` 와 좌우 비교.
+
+**Errors**: 401 / 403 / 404.
+
+---
+
+### 2.3 요청 승인/거부 — `PATCH /admin/store-requests/{request_id}` [T1]
+
+**인증 필요 (관리자 권한)** / **Path**: `request_id`
+
+**Request Body** (`StoreRequestActionRequest`)
+
+| 필드 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| action | string | Y | `APPROVE` 또는 `REJECT` |
+| note | string | N | 반려 사유·관리자 메모 (최대 1000자). 신청자에게 알림 본문으로도 전달됨. |
+
+**동작 — `APPROVE`**
+
+단일 트랜잭션 안에서:
+
+1. `type=ADD` → `stores` 테이블에 신규 행 INSERT (`status=APPROVED`, `owner_user_id` 와 `created_by` 모두 신청자 id 로). 카테고리가 `PET_HOTEL` 이고 `payload.plans` 가 있으면 `store_pricing_plans` 도 같이 INSERT.
+2. `type=UPDATE` → `target_store_id` 매장의 변경 필드만 갱신. lat/lng 둘 다 있으면 `location` 도 갱신. `payload.plans` 가 있으면 해당 매장의 plans 를 replace-all (기존 모두 삭제 후 새로 INSERT). 카테고리가 `PET_HOTEL` 에서 다른 값으로 변경된 경우 기존 plans 일괄 삭제.
+3. `store_requests`: `status=APPROVED`, `processed_at=NOW()`, `reviewer_id=관리자 id`, `review_note=note`.
+4. 신청자에게 `SYSTEM` 카테고리 알림 enqueue (FCM 푸시 활성화 시 자동 발송).
+
+**동작 — `REJECT`**
+
+`store_requests` 상태만 `REJECTED` 로 변경. `stores`/`store_pricing_plans` 변경 없음. 신청자에게 알림(반려 사유=`note`).
+
+**제약**
+
+- 이미 처리된 요청(`PENDING` 이 아닌 상태)에 다시 호출 → 409.
+- UPDATE 승인 시점에 대상 매장이 이미 삭제됐으면 → 404.
+- 카테고리 != `PET_HOTEL` 인데 `payload.plans` 가 들어 있으면 → 422 (방어 검증, 정상 흐름에서는 제출 시점에 이미 차단됨).
+
+**Response — 200 OK** (`StoreRequestProcessedResponse`)
+```json
+{
+  "request_id": 7,
+  "type": "ADD",
+  "target_store_id": null,
+  "status": "APPROVED",
+  "processed_at": "2026-05-21T10:30:00Z"
+}
+```
+
+**Errors**
+
+| 상태 코드 | 설명 |
+| --- | --- |
+| 400 / 422 | `action` 값 오류, 또는 plans/카테고리 불일치 |
+| 401 | 인증 실패 |
+| 403 | 관리자 권한 없음 |
+| 404 | `request_id` 없음, 또는 UPDATE 대상 매장이 사라짐 |
+| 409 | 이미 처리된 요청 |

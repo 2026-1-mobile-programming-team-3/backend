@@ -59,9 +59,21 @@ class StoreCategory(str, enum.Enum):
     CAFE = "CAFE"
     RESTAURANT = "RESTAURANT"
     PARK = "PARK"
+    PET_HOTEL = "PET_HOTEL"
 
 
 class StoreStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+class StoreRequestType(str, enum.Enum):
+    ADD = "ADD"
+    UPDATE = "UPDATE"
+
+
+class StoreRequestStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"

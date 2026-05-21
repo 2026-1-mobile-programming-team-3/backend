@@ -71,13 +71,13 @@
             <li><strong>반려동물</strong> — 등록/수정(전체 필드)·삭제, gender 도입 <span class="tag tag-done">완료</span></li>
             <li><strong>마이페이지</strong> — 활동 통계+봉사 뱃지 / 알림 설정 / 즐겨찾기 / 내 매칭 <span class="tag tag-new">신규</span></li>
             <li><strong>홈</strong> — 어그리게이트 대시보드 (날씨·산책지수 stub) <span class="tag tag-new">신규</span></li>
-            <li><strong>Map</strong> — 반경/검색/필터/상세/리뷰 + 봉사 위치 + 매장 CRUD <span class="tag tag-done">완료</span></li>
+            <li><strong>Map</strong> — 반경/검색/필터/상세/리뷰 + 봉사 위치 + 매장 CRUD + 펫호텔 가격 비교 + 매장 요청 워크플로우(ADD/UPDATE) <span class="tag tag-new">신규</span></li>
             <li><strong>News</strong> — 정책 뉴스/캘린더 <span class="tag tag-done">완료</span></li>
             <li><strong>알림</strong> — 목록/미읽음/전체 읽음/FCM 디바이스 등록 <span class="tag tag-done">완료</span></li>
             <li><strong>매칭</strong> — 요청 CRUD / 신청·수락거절 / 상태 전이 / 후기 / 내 매칭 / 채팅 <span class="tag tag-done">완료</span></li>
             <li><strong>채팅</strong> — REST 메시지/스레드 + WebSocket broadcast <span class="tag tag-ws">WS</span></li>
             <li><strong>신고·차단</strong> — 사용자 신고 / 채팅 메시지 신고 / 차단 CRUD <span class="tag tag-done">완료</span></li>
-            <li><strong>Admin</strong> — 봉사자 요청 목록/승인·거부 <span class="tag tag-done">완료</span></li>
+            <li><strong>Admin</strong> — 봉사자 요청 + 매장 요청 목록/승인·거부 <span class="tag tag-new">신규</span></li>
         </ul>
     </section>
 
@@ -479,6 +479,52 @@
         <pre id="out-volunteer-stats">아직 호출하지 않음</pre>
     </section>
 
+    <section class="card">
+        <h3>(관리자) 매장 요청 목록 &nbsp;<code>GET /api/v1/admin/store-requests</code></h3>
+        <p class="muted">ADMIN 권한 토큰 필요. 일반 USER 토큰으로 호출하면 403.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>status</label>
+                <select id="admin-store-requests-status">
+                    <option value="PENDING">PENDING</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="REJECTED">REJECTED</option>
+                </select>
+            </div>
+            <div class="field"><label>page</label><input id="admin-store-requests-page" type="number" min="1" value="1" /></div>
+            <div class="field"><label>size <span class="muted">1~100</span></label><input id="admin-store-requests-size" type="number" min="1" max="100" value="20" /></div>
+        </div>
+        <div class="actions"><button id="btn-admin-store-requests">목록 조회</button></div>
+        <pre id="out-admin-store-requests">아직 호출하지 않음</pre>
+    </section>
+
+    <section class="card">
+        <h3>(관리자) 매장 요청 상세 &nbsp;<code>GET /api/v1/admin/store-requests/{request_id}</code></h3>
+        <div class="form-row">
+            <div class="field"><label>request_id</label><input id="admin-store-request-detail-id" type="number" class="admin-store-request-id-input" placeholder="1" /></div>
+        </div>
+        <div class="actions"><button id="btn-admin-store-request-detail">상세 조회</button></div>
+        <pre id="out-admin-store-request-detail">아직 호출하지 않음</pre>
+    </section>
+
+    <section class="card">
+        <h3>(관리자) 매장 요청 승인/거부 &nbsp;<code>PATCH /api/v1/admin/store-requests/{request_id}</code></h3>
+        <p class="muted">APPROVE 시 payload 기반으로 매장 ADD/UPDATE 가 자동 반영됩니다.</p>
+        <div class="form-row">
+            <div class="field"><label>request_id</label><input id="admin-store-request-process-id" type="number" class="admin-store-request-id-input" placeholder="1" /></div>
+            <div class="field">
+                <label>action</label>
+                <select id="admin-store-request-process-action">
+                    <option value="APPROVE">APPROVE</option>
+                    <option value="REJECT">REJECT</option>
+                </select>
+            </div>
+        </div>
+        <div class="field"><label>note <span class="muted">선택</span></label><textarea id="admin-store-request-process-note" rows="2" placeholder="증빙 자료를 확인하였습니다."></textarea></div>
+        <div class="actions"><button id="btn-admin-store-request-process">처리</button></div>
+        <pre id="out-admin-store-request-process">아직 호출하지 않음</pre>
+    </section>
+
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════════════
@@ -532,6 +578,7 @@
                     <option value="CAFE">CAFE</option>
                     <option value="RESTAURANT">RESTAURANT</option>
                     <option value="PARK">PARK</option>
+                    <option value="PET_HOTEL">PET_HOTEL</option>
                 </select>
             </div>
             <div class="field">
@@ -563,6 +610,90 @@
         </div>
         <div class="actions"><button id="btn-map-reviews">리뷰 조회</button></div>
         <pre id="out-map-reviews">아직 호출하지 않음</pre>
+    </section>
+
+    <section class="card">
+        <h3>5.12 펫호텔 가격 비교 &nbsp;<code>GET /api/v1/maps/pet-hotels</code></h3>
+        <p class="muted">인증 불필요. 반경 내 PET_HOTEL 매장 + plans + min/max 가격 반환.</p>
+        <div class="form-row">
+            <div class="field"><label>lat</label><input id="pet-hotels-lat" type="number" step="0.0001" value="37.3752" /></div>
+            <div class="field"><label>lng</label><input id="pet-hotels-lng" type="number" step="0.0001" value="126.7281" /></div>
+            <div class="field"><label>radius (m) <span class="muted">max 50000</span></label><input id="pet-hotels-radius" type="number" min="1" max="50000" value="5000" /></div>
+        </div>
+        <div class="actions"><button id="btn-pet-hotels-near">펫호텔 조회</button></div>
+        <pre id="out-pet-hotels-near">아직 호출하지 않음</pre>
+    </section>
+
+    <section class="card">
+        <h3>5.13 매장 추가/수정 요청 제출 &nbsp;<code>POST /api/v1/maps/store-requests</code></h3>
+        <p class="muted">인증 필요, rate 5/h. PET_HOTEL 인 경우 payload 에 <code>plans:[{plan_name, price_krw, display_order?}]</code> 포함.</p>
+        <div class="form-row">
+            <div class="field">
+                <label>type</label>
+                <select id="store-request-type">
+                    <option value="ADD">ADD</option>
+                    <option value="UPDATE">UPDATE</option>
+                </select>
+            </div>
+            <div class="field"><label>target_store_id <span class="muted">UPDATE 시 필수</span></label><input id="store-request-target-id" type="number" placeholder="123" /></div>
+        </div>
+        <div class="field">
+            <label>payload (JSON)</label>
+            <textarea id="store-request-payload" rows="8" placeholder='{
+  "name": "멍멍펫호텔",
+  "address": "시흥시 정왕동 ...",
+  "latitude": 37.3752,
+  "longitude": 126.7281,
+  "category": "PET_HOTEL",
+  "is_pet_allowed": true,
+  "plans": [
+    {"plan_name": "소형견 1박", "price_krw": 35000, "display_order": 1},
+    {"plan_name": "중형견 1박", "price_krw": 45000, "display_order": 2}
+  ]
+}'></textarea>
+        </div>
+        <div class="field"><label>proof_urls <span class="muted">콤마 구분</span></label><input id="store-request-proof-urls" placeholder="https://example.com/proof1.jpg, https://example.com/proof2.jpg" /></div>
+        <div class="field"><label>message <span class="muted">선택</span></label><textarea id="store-request-message" rows="2" placeholder="신규 펫호텔이 오픈했습니다."></textarea></div>
+        <div class="actions"><button id="btn-store-request-create">요청 제출</button></div>
+        <pre id="out-store-request-create">아직 호출하지 않음</pre>
+    </section>
+
+    <section class="card">
+        <h3>5.14 본인 매장 요청 목록 &nbsp;<code>GET /api/v1/maps/store-requests</code></h3>
+        <div class="form-row">
+            <div class="field">
+                <label>status</label>
+                <select id="store-request-list-status">
+                    <option value="">— 전체 —</option>
+                    <option value="PENDING">PENDING</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="REJECTED">REJECTED</option>
+                </select>
+            </div>
+            <div class="field"><label>page</label><input id="store-request-list-page" type="number" min="1" value="1" /></div>
+            <div class="field"><label>size <span class="muted">1~100</span></label><input id="store-request-list-size" type="number" min="1" max="100" value="20" /></div>
+        </div>
+        <div class="actions"><button id="btn-store-request-list">목록 조회</button></div>
+        <pre id="out-store-request-list">아직 호출하지 않음</pre>
+    </section>
+
+    <section class="card">
+        <h3>5.15 본인 매장 요청 상세 &nbsp;<code>GET /api/v1/maps/store-requests/{request_id}</code></h3>
+        <div class="form-row">
+            <div class="field"><label>request_id</label><input id="store-request-detail-id" type="number" class="store-request-id-input" placeholder="1" /></div>
+        </div>
+        <div class="actions"><button id="btn-store-request-detail">상세 조회</button></div>
+        <pre id="out-store-request-detail">아직 호출하지 않음</pre>
+    </section>
+
+    <section class="card">
+        <h3>5.16 본인 매장 요청 취소 &nbsp;<code>DELETE /api/v1/maps/store-requests/{request_id}</code></h3>
+        <p class="muted">PENDING 상태인 요청만 취소 가능.</p>
+        <div class="form-row">
+            <div class="field"><label>request_id</label><input id="store-request-cancel-id" type="number" class="store-request-id-input" placeholder="1" /></div>
+        </div>
+        <div class="actions"><button id="btn-store-request-cancel" class="btn-danger">요청 취소</button></div>
+        <pre id="out-store-request-cancel">아직 호출하지 않음</pre>
     </section>
 
 </div>
@@ -1232,6 +1363,123 @@ document.getElementById("btn-map-reviews").addEventListener("click", async () =>
     out.textContent = "호출 중..."; delete out.dataset.status;
     const { status, body } = await callApi(`/api/v1/maps/stores/${id}/reviews`);
     render(out, status, body);
+});
+
+// ─── Map 5.12 펫호텔 가격 비교 ───────────────────────────────────────────────
+document.getElementById("btn-pet-hotels-near").addEventListener("click", async () => {
+    const out    = document.getElementById("out-pet-hotels-near");
+    const lat    = document.getElementById("pet-hotels-lat").value;
+    const lng    = document.getElementById("pet-hotels-lng").value;
+    const radius = document.getElementById("pet-hotels-radius").value || "5000";
+    if (!lat || !lng) { render(out, 0, "lat과 lng를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body } = await callApi(`/api/v1/maps/pet-hotels?lat=${lat}&lng=${lng}&radius=${radius}`);
+    render(out, status, body);
+});
+
+// ─── Map 5.13 매장 요청 제출 ─────────────────────────────────────────────────
+document.getElementById("btn-store-request-create").addEventListener("click", async () => {
+    const out         = document.getElementById("out-store-request-create");
+    const type        = document.getElementById("store-request-type").value;
+    const targetIdRaw = document.getElementById("store-request-target-id").value.trim();
+    const payloadRaw  = document.getElementById("store-request-payload").value.trim();
+    const proofRaw    = document.getElementById("store-request-proof-urls").value.trim();
+    const message     = document.getElementById("store-request-message").value.trim();
+    if (!payloadRaw) { render(out, 0, "payload(JSON)를 입력하세요."); return; }
+    let payload;
+    try { payload = JSON.parse(payloadRaw); }
+    catch (e) { render(out, 0, "payload JSON 파싱 실패: " + e.message); return; }
+    const proof_urls = proofRaw ? proofRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
+    const body = { type, payload, proof_urls };
+    if (targetIdRaw) body.target_store_id = Number(targetIdRaw);
+    if (message)     body.message         = message;
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body: resp } = await callApi("/api/v1/maps/store-requests",
+        { method: "POST", body, headers: authHeaders() });
+    render(out, status, resp);
+    if (status === 201 && resp?.request_id) {
+        setAutoFill(".store-request-id-input", resp.request_id);
+    }
+});
+
+// ─── Map 5.14 본인 매장 요청 목록 ────────────────────────────────────────────
+document.getElementById("btn-store-request-list").addEventListener("click", async () => {
+    const out  = document.getElementById("out-store-request-list");
+    const s    = document.getElementById("store-request-list-status").value;
+    const page = document.getElementById("store-request-list-page").value || "1";
+    const size = document.getElementById("store-request-list-size").value || "20";
+    const params = new URLSearchParams({ page, size });
+    if (s) params.set("status", s);
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body } = await callApi(`/api/v1/maps/store-requests?${params}`,
+        { headers: authHeaders() });
+    render(out, status, body);
+    if (status === 200 && body?.items?.[0]) {
+        setAutoFill(".store-request-id-input", body.items[0].request_id);
+    }
+});
+
+// ─── Map 5.15 본인 매장 요청 상세 ────────────────────────────────────────────
+document.getElementById("btn-store-request-detail").addEventListener("click", async () => {
+    const out = document.getElementById("out-store-request-detail");
+    const id  = document.getElementById("store-request-detail-id").value;
+    if (!id) { render(out, 0, "request_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body } = await callApi(`/api/v1/maps/store-requests/${id}`,
+        { headers: authHeaders() });
+    render(out, status, body);
+});
+
+// ─── Map 5.16 본인 매장 요청 취소 ────────────────────────────────────────────
+document.getElementById("btn-store-request-cancel").addEventListener("click", async () => {
+    const out = document.getElementById("out-store-request-cancel");
+    const id  = document.getElementById("store-request-cancel-id").value;
+    if (!id) { render(out, 0, "request_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body } = await callApi(`/api/v1/maps/store-requests/${id}`,
+        { method: "DELETE", headers: authHeaders() });
+    render(out, status, status === 204 ? "취소 완료" : body);
+});
+
+// ─── (관리자) 매장 요청 목록 ─────────────────────────────────────────────────
+document.getElementById("btn-admin-store-requests").addEventListener("click", async () => {
+    const out  = document.getElementById("out-admin-store-requests");
+    const s    = document.getElementById("admin-store-requests-status").value;
+    const page = document.getElementById("admin-store-requests-page").value || "1";
+    const size = document.getElementById("admin-store-requests-size").value || "20";
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body } = await callApi(
+        `/api/v1/admin/store-requests?status=${s}&page=${page}&size=${size}`,
+        { headers: authHeaders() });
+    render(out, status, body);
+    if (status === 200 && body?.items?.[0]) {
+        setAutoFill(".admin-store-request-id-input", body.items[0].request_id);
+    }
+});
+
+// ─── (관리자) 매장 요청 상세 ─────────────────────────────────────────────────
+document.getElementById("btn-admin-store-request-detail").addEventListener("click", async () => {
+    const out = document.getElementById("out-admin-store-request-detail");
+    const id  = document.getElementById("admin-store-request-detail-id").value;
+    if (!id) { render(out, 0, "request_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const { status, body } = await callApi(`/api/v1/admin/store-requests/${id}`,
+        { headers: authHeaders() });
+    render(out, status, body);
+});
+
+// ─── (관리자) 매장 요청 승인/거부 ────────────────────────────────────────────
+document.getElementById("btn-admin-store-request-process").addEventListener("click", async () => {
+    const out    = document.getElementById("out-admin-store-request-process");
+    const id     = document.getElementById("admin-store-request-process-id").value;
+    const action = document.getElementById("admin-store-request-process-action").value;
+    const note   = document.getElementById("admin-store-request-process-note").value.trim();
+    if (!id) { render(out, 0, "request_id를 입력하세요."); return; }
+    out.textContent = "호출 중..."; delete out.dataset.status;
+    const body = { action }; if (note) body.note = note;
+    const { status, body: resp } = await callApi(`/api/v1/admin/store-requests/${id}`,
+        { method: "PATCH", body, headers: authHeaders() });
+    render(out, status, resp);
 });
 
 // ─── News ────────────────────────────────────────────────────────────────────

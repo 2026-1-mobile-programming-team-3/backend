@@ -1,12 +1,10 @@
-from datetime import datetime, timezone
-
 from geoalchemy2 import Geography, Geometry
 from sqlalchemy import func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.models.enums import StoreCategory, StoreStatus
-from app.models.store import Store, StoreReview
+from app.models.store import Store, StorePricingPlan, StoreReview
 from app.models.user import User
 
 
@@ -105,6 +103,45 @@ async def nearby_approved(
     ]
 
 
+VIEWPORT_LIMIT = 200
+
+
+async def list_within_viewport(
+    db: AsyncSession,
+    *,
+    sw_lat: float,
+    sw_lng: float,
+    ne_lat: float,
+    ne_lng: float,
+    category: StoreCategory | None,
+) -> tuple[list[tuple[Store, float, float]], bool]:
+    """
+    bbox(viewport) 안 APPROVED 매장 (Store, lat, lng) + truncated 플래그.
+    ST_MakeEnvelope 로 박스를 만들고, 같은 GiST 인덱스를 그대로 활용 (idx_stores_location_gist).
+    """
+    envelope = func.ST_MakeEnvelope(sw_lng, sw_lat, ne_lng, ne_lat, 4326)
+    location_geom = func.cast(Store.location, Geometry)
+    stmt = (
+        select(
+            Store,
+            func.ST_Y(location_geom).label("lat"),
+            func.ST_X(location_geom).label("lng"),
+        )
+        .where(
+            Store.status == StoreStatus.APPROVED,
+            Store.deleted_at.is_(None),
+            func.ST_Intersects(location_geom, envelope),
+        )
+    )
+    if category is not None:
+        stmt = stmt.where(Store.category == category)
+    stmt = stmt.order_by(Store.id.asc()).limit(VIEWPORT_LIMIT + 1)
+    result = await db.execute(stmt)
+    rows = [(row[0], float(row[1]), float(row[2])) for row in result.all()]
+    truncated = len(rows) > VIEWPORT_LIMIT
+    return rows[:VIEWPORT_LIMIT], truncated
+
+
 async def list_reviews_with_authors(
     db: AsyncSession, store_id: int
 ) -> list[tuple[StoreReview, str | None]]:
@@ -143,58 +180,6 @@ async def get_by_id_for_owner(db: AsyncSession, store_id: int) -> Store | None:
     return result.scalar_one_or_none()
 
 
-async def create_store(
-    db: AsyncSession,
-    *,
-    name: str,
-    address: str,
-    phone: str | None,
-    category: StoreCategory,
-    lat: float,
-    lng: float,
-    operating_hours: str | None,
-    photo_urls: list[str],
-    is_pet_allowed: bool,
-    created_by: int,
-) -> Store:
-    """status=PENDING 고정. location은 ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography."""
-    store = Store(
-        name=name,
-        address=address,
-        phone=phone,
-        category=category,
-        location=func.ST_SetSRID(func.ST_MakePoint(lng, lat), 4326).cast(Geography),
-        operating_hours=operating_hours,
-        photo_urls=photo_urls,
-        is_pet_allowed=is_pet_allowed,
-        status=StoreStatus.PENDING,
-        created_by=created_by,
-    )
-    db.add(store)
-    await db.commit()
-    await db.refresh(store)
-    return store
-
-
-async def update_store(db: AsyncSession, store: Store, **fields) -> Store:
-    """fields의 키마다 setattr. lat·lng가 함께 있으면 location 갱신.
-    commit은 호출자 책임."""
-    lat = fields.pop("latitude", None)
-    lng = fields.pop("longitude", None)
-    for key, value in fields.items():
-        setattr(store, key, value)
-    if lat is not None and lng is not None:
-        store.location = func.ST_SetSRID(
-            func.ST_MakePoint(lng, lat), 4326
-        ).cast(Geography)
-    return store
-
-
-async def soft_delete_store(db: AsyncSession, store: Store) -> None:
-    """deleted_at = NOW(). commit은 호출자 책임."""
-    store.deleted_at = datetime.now(timezone.utc)
-
-
 async def create_review(
     db: AsyncSession,
     *,
@@ -227,3 +212,150 @@ async def get_review(db: AsyncSession, review_id: int) -> StoreReview | None:
 async def delete_review(db: AsyncSession, review: StoreReview) -> None:
     """commit은 호출자 책임."""
     await db.delete(review)
+
+
+# ─── Pricing plans (PET_HOTEL) ──────────────────────────────────────────────
+
+async def list_plans_for_store(
+    db: AsyncSession, store_id: int
+) -> list[StorePricingPlan]:
+    stmt = (
+        select(StorePricingPlan)
+        .where(StorePricingPlan.store_id == store_id)
+        .order_by(StorePricingPlan.display_order.asc(), StorePricingPlan.id.asc())
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def list_plans_for_stores(
+    db: AsyncSession, store_ids: list[int]
+) -> dict[int, list[StorePricingPlan]]:
+    """매장 N개에 대한 plans 일괄 조회 → {store_id: [plan, ...]} 매핑.
+    빈 매장은 키 자체가 없음."""
+    if not store_ids:
+        return {}
+    stmt = (
+        select(StorePricingPlan)
+        .where(StorePricingPlan.store_id.in_(store_ids))
+        .order_by(StorePricingPlan.store_id.asc(), StorePricingPlan.display_order.asc())
+    )
+    result = await db.execute(stmt)
+    grouped: dict[int, list[StorePricingPlan]] = {}
+    for plan in result.scalars().all():
+        grouped.setdefault(plan.store_id, []).append(plan)
+    return grouped
+
+
+async def replace_plans(
+    db: AsyncSession, store_id: int, plans_payload: list[dict]
+) -> list[StorePricingPlan]:
+    """매장의 plans를 통째로 교체 (replace-all 시맨틱). commit은 호출자.
+
+    plans_payload는 [{plan_name, price_krw, display_order?}, ...] 형태."""
+    # 기존 plans 모두 삭제
+    await db.execute(
+        text("DELETE FROM store_pricing_plans WHERE store_id = :sid"),
+        {"sid": store_id},
+    )
+    created: list[StorePricingPlan] = []
+    for idx, p in enumerate(plans_payload):
+        plan = StorePricingPlan(
+            store_id=store_id,
+            plan_name=p["plan_name"],
+            price_krw=p["price_krw"],
+            display_order=p.get("display_order", idx),
+        )
+        db.add(plan)
+        created.append(plan)
+    return created
+
+
+async def nearby_pet_hotels(
+    db: AsyncSession, lat: float, lng: float, radius_m: int, limit: int = 50
+) -> list[tuple[Store, float, float, float]]:
+    """반경 내 APPROVED + category=PET_HOTEL 매장 (Store, lat, lng, distance_m).
+    거리 오름차순, limit cap."""
+    point = func.cast(
+        func.ST_SetSRID(func.ST_MakePoint(lng, lat), 4326),
+        Geography,
+    )
+    location_geom = func.cast(Store.location, Geometry)
+    distance_expr = func.ST_Distance(Store.location, point).label("distance_m")
+    stmt = (
+        select(
+            Store,
+            func.ST_Y(location_geom).label("lat"),
+            func.ST_X(location_geom).label("lng"),
+            distance_expr,
+        )
+        .where(
+            Store.status == StoreStatus.APPROVED,
+            Store.deleted_at.is_(None),
+            Store.category == StoreCategory.PET_HOTEL,
+            func.ST_DWithin(Store.location, point, radius_m),
+        )
+        .order_by(distance_expr.asc())
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    return [
+        (row[0], float(row[1]), float(row[2]), float(row[3]))
+        for row in result.all()
+    ]
+
+
+async def insert_store_from_payload(
+    db: AsyncSession,
+    *,
+    payload: dict,
+    owner_user_id: int,
+) -> Store:
+    """store_requests ADD 승인 시 호출. status=APPROVED 즉시. commit은 호출자."""
+    store = Store(
+        name=payload["name"],
+        address=payload["address"],
+        phone=payload.get("phone"),
+        category=StoreCategory(payload["category"]),
+        location=func.ST_SetSRID(
+            func.ST_MakePoint(payload["longitude"], payload["latitude"]),
+            4326,
+        ).cast(Geography),
+        operating_hours=payload.get("operating_hours"),
+        photo_urls=payload.get("photo_urls") or [],
+        is_pet_allowed=bool(payload["is_pet_allowed"]),
+        status=StoreStatus.APPROVED,
+        created_by=owner_user_id,
+        owner_user_id=owner_user_id,
+    )
+    db.add(store)
+    await db.flush()
+    return store
+
+
+async def apply_update_payload(
+    db: AsyncSession, store: Store, payload: dict
+) -> Store:
+    """UPDATE 요청 승인 시 호출. payload에 있는 키만 갱신. commit은 호출자."""
+    lat = payload.get("latitude")
+    lng = payload.get("longitude")
+    simple_keys = (
+        "name",
+        "address",
+        "category",
+        "is_pet_allowed",
+        "phone",
+        "operating_hours",
+        "photo_urls",
+    )
+    for key in simple_keys:
+        if key in payload and payload[key] is not None:
+            value = payload[key]
+            if key == "category":
+                value = StoreCategory(value)
+            setattr(store, key, value)
+    if lat is not None and lng is not None:
+        store.location = func.ST_SetSRID(
+            func.ST_MakePoint(lng, lat), 4326
+        ).cast(Geography)
+    return store

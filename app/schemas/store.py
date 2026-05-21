@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models.enums import StoreCategory, StoreStatus
+from app.models.enums import StoreCategory
 
 
 def _validate_finite(v: float | None) -> float | None:
@@ -36,6 +36,18 @@ class StoreSearchItem(BaseModel):
     category: StoreCategory
 
 
+class PricingPlanItem(BaseModel):
+    """PET_HOTEL 매장의 가격 플랜 1건. plan_name은 자유 텍스트로 단위 포함 가능 ('1박 소형견').
+
+    다른 카테고리 매장에서는 plans가 항상 빈 배열로 응답된다.
+    """
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    plan_name: str
+    price_krw: int
+    display_order: int = 0
+
+
 class StoreDetail(BaseModel):
     """5.3 상세"""
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
@@ -47,9 +59,11 @@ class StoreDetail(BaseModel):
     operating_hours: str | None
     photo_urls: list[str]
     is_pet_allowed: bool
+    category: StoreCategory
     rating_avg: float
     review_pet_allowed_rate: float
     is_favorited: bool = False
+    plans: list[PricingPlanItem] = Field(default_factory=list)
 
 
 class StoreFilterResponse(BaseModel):
@@ -96,50 +110,48 @@ class StoreNearbyResponse(BaseModel):
     stores: list[StoreNearbyItem]
 
 
-class StoreCreateRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    address: str = Field(min_length=1, max_length=255)
+class StoreViewportItem(BaseModel):
+    """지도 viewport 응답 항목 — 거리 없음, 마커 렌더에 필요한 최소 정보."""
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    store_id: int = Field(alias="id")
+    name: str
+    latitude: float
+    longitude: float
     category: StoreCategory
     is_pet_allowed: bool
-    latitude: float = Field(ge=-90, le=90)
-    longitude: float = Field(ge=-180, le=180)
-    phone: str | None = Field(default=None, max_length=20)
-    operating_hours: str | None = Field(default=None, max_length=100)
-    photo_urls: list[str] = Field(default_factory=list)
+    rating_avg: float | None = None
+    rating_count: int = 0
 
-    @field_validator("latitude", "longitude")
+
+class StoreViewportResponse(BaseModel):
+    stores: list[StoreViewportItem]
+    truncated: bool = Field(
+        default=False,
+        description="결과가 limit(=200)에 잘려서 일부만 반환된 경우 true. 클라이언트가 줌인 안내를 띄울 수 있다.",
+    )
+
+
+class StoreViewportQuery(BaseModel):
+    """bbox 좌표 페어 유효성 검증용 내부 모델."""
+    sw_lat: float = Field(ge=-90, le=90)
+    sw_lng: float = Field(ge=-180, le=180)
+    ne_lat: float = Field(ge=-90, le=90)
+    ne_lng: float = Field(ge=-180, le=180)
+
+    @field_validator("sw_lat", "sw_lng", "ne_lat", "ne_lng")
     @classmethod
     def _finite(cls, v: float) -> float:
         return _validate_finite(v)  # type: ignore[return-value]
 
-
-class StoreCreateResponse(BaseModel):
-    store_id: int
-    status: StoreStatus
-
-
-class StoreUpdateRequest(BaseModel):
-    """전송된 필드만 갱신 (사실상 PATCH 시맨틱). 모든 필드 옵션."""
-    name: str | None = Field(default=None, min_length=1, max_length=100)
-    address: str | None = Field(default=None, min_length=1, max_length=255)
-    category: StoreCategory | None = None
-    is_pet_allowed: bool | None = None
-    latitude: float | None = Field(default=None, ge=-90, le=90)
-    longitude: float | None = Field(default=None, ge=-180, le=180)
-    phone: str | None = Field(default=None, max_length=20)
-    operating_hours: str | None = Field(default=None, max_length=100)
-    photo_urls: list[str] | None = None
-
-    @field_validator("latitude", "longitude")
-    @classmethod
-    def _finite(cls, v: float | None) -> float | None:
-        return _validate_finite(v)
-
     @model_validator(mode="after")
-    def validate_coords_paired(self):
-        """lat/lng는 둘 다 있거나 둘 다 없어야 함 — 한쪽만 변경은 의미 없음."""
-        if (self.latitude is None) != (self.longitude is None):
-            raise ValueError("latitude와 longitude는 둘 다 함께 보내야 합니다.")
+    def _validate_box(self):
+        if self.sw_lat >= self.ne_lat:
+            raise ValueError("sw_lat은 ne_lat보다 작아야 합니다.")
+        if self.sw_lng >= self.ne_lng:
+            raise ValueError(
+                "sw_lng은 ne_lng보다 작아야 합니다. (날짜변경선을 가로지르는 박스는 지원하지 않음 — 한국 서비스이므로 발생할 일 없음.)"
+            )
         return self
 
 
@@ -157,3 +169,26 @@ class StoreReviewCreatedResponse(BaseModel):
     is_pet_allowed: bool
     content: str
     created_at: datetime
+
+
+class PetHotelItem(BaseModel):
+    """GET /maps/pet-hotels 의 매장 1건. 플랜 + 가격 요약 포함."""
+
+    store_id: int
+    name: str
+    address: str
+    latitude: float
+    longitude: float
+    distance_m: float
+    is_pet_allowed: bool
+    thumbnail_url: str | None = None
+    rating_avg: float | None = None
+    rating_count: int = 0
+    plan_count: int
+    min_price_krw: int | None = None
+    max_price_krw: int | None = None
+    plans: list[PricingPlanItem] = Field(default_factory=list)
+
+
+class PetHotelListResponse(BaseModel):
+    pet_hotels: list[PetHotelItem]

@@ -30,6 +30,8 @@ from app.admin.views import (
     ReportAdmin,
     StoreAdmin,
     StoreFavoriteAdmin,
+    StorePricingPlanAdmin,
+    StoreRequestAdmin,
     StoreReviewAdmin,
     UserAdmin,
     VolunteerRequestAdmin,
@@ -129,6 +131,8 @@ admin.add_view(MatchReviewAdmin)
 admin.add_view(StoreAdmin)
 admin.add_view(StoreFavoriteAdmin)
 admin.add_view(StoreReviewAdmin)
+admin.add_view(StorePricingPlanAdmin)
+admin.add_view(StoreRequestAdmin)
 admin.add_view(VolunteerRequestAdmin)
 admin.add_view(ReportAdmin)
 admin.add_view(CalendarEventAdmin)
