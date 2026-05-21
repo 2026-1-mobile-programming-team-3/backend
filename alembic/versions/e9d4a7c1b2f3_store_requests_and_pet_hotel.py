@@ -18,8 +18,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1) store_category 에 PET_HOTEL 값 추가.
-    # ALTER TYPE ... ADD VALUE 는 Postgres 12+ 부터 트랜잭션 내부에서 허용된다.
+    # 0) 부분 실패에서 남은 잔여물 정리 (이번 마이그레이션이 한 번도 안 돌았으면 모두 no-op).
+    # 첫 시도가 트랜잭션 외부에서 CREATE TYPE 까지만 도달하고 컨테이너가 죽으면
+    # enum 만 남아 다음 실행에서 DuplicateObjectError 가 발생할 수 있다.
+    op.execute("DROP TABLE IF EXISTS store_pricing_plans CASCADE")
+    op.execute("DROP TABLE IF EXISTS store_requests CASCADE")
+    op.execute("DROP TYPE IF EXISTS store_request_status")
+    op.execute("DROP TYPE IF EXISTS store_request_type")
+    op.execute("ALTER TABLE stores DROP COLUMN IF EXISTS owner_user_id")
+
+    # 1) store_category 에 PET_HOTEL 값 추가. PG는 ENUM 값 DROP 미지원이라 IF NOT EXISTS.
     op.execute("ALTER TYPE store_category ADD VALUE IF NOT EXISTS 'PET_HOTEL'")
 
     # 2) store_requests 용 enum 두 개.
